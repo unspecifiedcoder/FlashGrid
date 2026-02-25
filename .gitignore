@@ -1,0 +1,34 @@
+# Dependencies
+node_modules/
+dashboard/node_modules/
+scripts/node_modules/
+
+# Build output
+contracts/out/
+contracts/cache/
+dashboard/.next/
+dashboard/out/
+scripts/dist/
+
+# Environment
+.env
+.env.local
+dashboard/.env.local
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Foundry
+contracts/lib/
+contracts/broadcast/
+
+# Misc
+*.log
+*.tsbuildinfo
+wallets.json
+nul
