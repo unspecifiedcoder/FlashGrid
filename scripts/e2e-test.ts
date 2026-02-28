@@ -39,9 +39,9 @@ const MONAD_TESTNET: Chain = {
 };
 
 const PRIVATE_KEY = (process.env.PRIVATE_KEY || "0x6b85bf9aae2701fbd120a260b3198809a9219f1f54fc892230d768afca1dfb5a") as `0x${string}`;
-const FLASHGRID_ADDRESS = (process.env.FLASHGRID_ADDRESS || "0x136DbD2A42b842417d40c1930A149e10D4600DF4") as `0x${string}`;
-const BENCHMARK_ADDRESS = (process.env.BENCHMARK_ADDRESS || "0x6b8a2a79794251c6E9e23E36142277210EF6A717") as `0x${string}`;
-const FACTORY_ADDRESS = (process.env.NEXT_PUBLIC_FACTORY_ADDRESS || "0x93fb227eD3087f6E4506e2fDCec2aC528b9a430d") as `0x${string}`;
+const FLASHGRID_ADDRESS = (process.env.FLASHGRID_ADDRESS || "0x89014cDeB2FDc07A0D99aD95FabC853620620666") as `0x${string}`;
+const BENCHMARK_ADDRESS = (process.env.BENCHMARK_ADDRESS || "0xF176D8C0a1179063F5e6Af5f45e53391f42f0DAC") as `0x${string}`;
+const FACTORY_ADDRESS = (process.env.NEXT_PUBLIC_FACTORY_ADDRESS || "0x51Bacb5Dd1E9D6674853A038B87609aA702aF8b7") as `0x${string}`;
 
 // Use a different mnemonic - the default hardhat one has collisions with deployed contracts on Monad
 const TEST_MNEMONIC = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
@@ -99,12 +99,18 @@ function assert(condition: boolean, message: string) {
   }
 }
 
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 async function waitForTx(publicClient: any, hash: Hash, label: string): Promise<any> {
   console.log(`    tx: ${hash.slice(0, 18)}...`);
   const receipt = await publicClient.waitForTransactionReceipt({ hash, timeout: 60_000 });
   if (receipt.status !== "success") {
     throw new Error(`Transaction ${label} failed: ${hash}`);
   }
+  // Small delay to let nonce sync on the RPC node
+  await sleep(500);
   return receipt;
 }
 

@@ -169,9 +169,9 @@ mapping(address => uint256) public balances;    // Only touched on deposit/withd
 
 | Contract | Address |
 |----------|---------|
-| FlashGridFactory | `0x93fb227eD3087f6E4506e2fDCec2aC528b9a430d` |
-| FlashGrid Market | `0x136DbD2A42b842417d40c1930A149e10D4600DF4` |
-| ParallelBenchmark | `0x6b8a2a79794251c6E9e23E36142277210EF6A717` |
+| FlashGridFactory | `0x51Bacb5Dd1E9D6674853A038B87609aA702aF8b7` |
+| FlashGrid Market | `0x89014cDeB2FDc07A0D99aD95FabC853620620666` |
+| ParallelBenchmark | `0xF176D8C0a1179063F5e6Af5f45e53391f42f0DAC` |
 
 **Explorer:** https://testnet.monadvision.com
 

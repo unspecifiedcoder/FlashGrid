@@ -208,7 +208,8 @@ contract FlashGrid {
 
         for (uint8 i = 0; i < NUM_TICKS; i++) {
             TickState storage ts = ticks[i];
-            if (ts.orderCount > 0) {
+            // Skip ticks with no orders or already settled this epoch
+            if (ts.orderCount > 0 && ts.lastMatchedEpoch < currentEpoch) {
                 uint128 tickVolume = ts.totalYesLiquidity + ts.totalNoLiquidity;
                 totalVolume += uint256(tickVolume);
                 activeTickCount++;
