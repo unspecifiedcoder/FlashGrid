@@ -1,8 +1,10 @@
+// contract.ts
+// Network configuration, deployed contract addresses, and ABI definitions
+// for the FlashGrid smart contracts on Monad testnet.
+
 import { type Abi } from "viem";
 
-// ═══════════════════════════════════════════════════════════
-//                   NETWORK CONFIG
-// ═══════════════════════════════════════════════════════════
+// ── Network Config ──────────────────────────────────────────────
 
 export const MONAD_TESTNET = {
   id: 10143,

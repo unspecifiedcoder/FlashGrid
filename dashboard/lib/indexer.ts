@@ -1,8 +1,14 @@
+// indexer.ts
+// Server-side event indexer that polls the Monad testnet for FlashGrid contract
+// events (OrderPlaced, TickSettled, EpochCompleted). Maintains an in-memory
+// event store with deduplication and provides helper functions for metrics
+// computation. Starts polling from the current block and backfills 10,000 blocks.
+
 import { createPublicClient, http, formatEther, type Log } from "viem";
 import { MONAD_TESTNET, ADDRESSES, FLASHGRID_ABI } from "./contract";
 import type { LiveOrder, TickSettledEvent } from "./types";
 
-// ═══════════════════════════════════════════════════════════
+// ──────────────────────────────────────────────────────────────
 //                  IN-MEMORY EVENT STORE
 // ═══════════════════════════════════════════════════════════
 

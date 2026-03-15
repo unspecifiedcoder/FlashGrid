@@ -1,3 +1,9 @@
+// wallet.ts
+// Client-side wallet interaction helpers for the FlashGrid dashboard.
+// Handles MetaMask connection, balance fetching (both native MON and in-contract
+// grid balance), deposit/withdraw, order placement, and settlement calls.
+// All functions use viem for type-safe Ethereum interactions.
+
 "use client";
 
 import {
