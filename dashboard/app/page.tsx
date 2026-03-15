@@ -1,6 +1,13 @@
+// page.tsx
+// Main dashboard page for the FlashGrid parallel batch auction engine.
+// Renders a three-column layout: left interactive panel (trade/settle/demo/compare),
+// center heatmap and order feed, right metrics panel. All data is polled live
+// from internal API routes and displayed in a clean Apple-inspired light theme.
+
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { Activity, Radio, ExternalLink } from "lucide-react";
 import Heatmap from "@/components/Heatmap";
 import OrderFeed from "@/components/OrderFeed";
 import MetricsPanel from "@/components/MetricsPanel";
@@ -26,17 +33,18 @@ import {
 } from "@/lib/wallet";
 import type { WalletClient, PublicClient } from "viem";
 
+/** How often (ms) the dashboard polls for fresh event/metrics/tick data. */
 const POLL_INTERVAL = 2000;
 
 export default function Dashboard() {
-  // ─── Wallet State ──────────────────────────────────────────
+  // ── Wallet State ──────────────────────────────────────────────
   const [address, setAddress] = useState<string | null>(null);
   const [walletClient, setWalletClient] = useState<WalletClient | null>(null);
   const [publicClient, setPublicClient] = useState<PublicClient | null>(null);
   const [monBalance, setMonBalance] = useState("0");
   const [gridBalance, setGridBalance] = useState("0");
 
-  // ─── Data State ────────────────────────────────────────────
+  // ── Data State ────────────────────────────────────────────────
   const [orders, setOrders] = useState<LiveOrder[]>([]);
   const [metrics, setMetrics] = useState<MetricsResponse>({
     ordersPerBlock: [],
@@ -69,12 +77,12 @@ export default function Dashboard() {
     Array<{ hash: string; label: string; time: number }>
   >([]);
 
-  // ─── Hydration-safe mount flag ─────────────────────────────
+  // ── Hydration-safe mount flag ─────────────────────────────────
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  // ─── Wallet Connection ─────────────────────────────────────
+  // ── Wallet Connection ─────────────────────────────────────────
   const handleConnect = useCallback(async () => {
     try {
       const { address: addr, walletClient: wc, publicClient: pc } = await connectWallet();
@@ -94,7 +102,7 @@ export default function Dashboard() {
     setGridBalance("0");
   }, []);
 
-  // Refresh balances
+  // Refresh on-chain and in-contract balances at a regular interval
   const refreshBalances = useCallback(async () => {
     if (!address || !publicClient) return;
     try {
@@ -105,7 +113,7 @@ export default function Dashboard() {
       setMonBalance(mon);
       setGridBalance(grid);
     } catch {
-      // Ignore balance fetch errors
+      // Swallow balance fetch errors — not critical
     }
   }, [address, publicClient]);
 
@@ -115,7 +123,7 @@ export default function Dashboard() {
     return () => clearInterval(interval);
   }, [refreshBalances]);
 
-  // Listen for account changes
+  // Listen for MetaMask account changes
   useEffect(() => {
     if (typeof window === "undefined" || !window.ethereum) return;
     const handleAccountsChanged = (accounts: string[]) => {
@@ -131,7 +139,7 @@ export default function Dashboard() {
     };
   }, [handleDisconnect]);
 
-  // ─── Contract Interactions ─────────────────────────────────
+  // ── Contract Interactions ─────────────────────────────────────
   const addTx = (hash: string, label: string) => {
     setRecentTxs((prev) => [{ hash, label, time: Date.now() }, ...prev].slice(0, 10));
   };
@@ -178,7 +186,7 @@ export default function Dashboard() {
     fetchData();
   };
 
-  // ─── Data Polling ──────────────────────────────────────────
+  // ── Data Polling ──────────────────────────────────────────────
   const fetchData = useCallback(async () => {
     try {
       const [eventsRes, metricsRes, ticksRes] = await Promise.all([
@@ -213,42 +221,44 @@ export default function Dashboard() {
     }
   }, [isLive, fetchData]);
 
-  // ─── Render ────────────────────────────────────────────────
+  // ── Render ────────────────────────────────────────────────────
   return (
-    <div className="flex h-screen flex-col overflow-hidden">
+    <div className="flex h-screen flex-col overflow-hidden bg-surface-secondary">
       {/* ═══ TOP BAR ═══ */}
-      <header className="flex items-center justify-between border-b border-monad-border bg-monad-dark px-4 py-2.5">
+      <header className="flex items-center justify-between border-b border-border bg-surface-primary px-4 py-2.5">
         <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <div className="glow-purple flex h-8 w-8 items-center justify-center rounded-lg bg-monad-purple text-sm font-bold text-white">
+          {/* Brand mark */}
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent-blue text-sm font-bold text-content-inverse">
               FG
             </div>
             <div>
-              <h1 className="text-lg font-bold leading-none text-white">
+              <h1 className="text-base font-semibold leading-none text-content-primary">
                 FlashGrid
               </h1>
-              <p className="text-[10px] text-monad-text">
+              <p className="text-[10px] text-content-tertiary">
                 Parallel Batch Auction Engine
               </p>
             </div>
           </div>
 
-          <div className="rounded-full border border-monad-purple/30 bg-monad-purple/10 px-3 py-1 text-[10px] font-medium text-monad-purple">
+          {/* Network badge */}
+          <div className="rounded-full border border-border bg-surface-secondary px-3 py-1 text-[10px] font-medium text-content-secondary">
             Monad Testnet
           </div>
 
-          {/* Live toggle */}
+          {/* Live/paused toggle */}
           <button
             onClick={() => setIsLive(!isLive)}
-            className={`flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs transition-all ${
+            className={`flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs transition-interactive ${
               isLive
-                ? "border-monad-accent/30 bg-monad-accent/10 text-monad-accent"
-                : "border-monad-border bg-monad-card text-monad-text"
+                ? "border-accent-green/40 bg-accent-green/8 text-accent-green"
+                : "border-border bg-surface-primary text-content-tertiary"
             }`}
           >
             <span
               className={`inline-block h-2 w-2 rounded-full ${
-                isLive ? "live-indicator bg-monad-accent" : "bg-monad-text"
+                isLive ? "live-indicator bg-accent-green" : "bg-content-tertiary"
               }`}
             />
             {isLive ? "LIVE" : "PAUSED"}
@@ -256,7 +266,7 @@ export default function Dashboard() {
         </div>
 
         <div className="flex items-center gap-3">
-          <span className="text-[10px] text-monad-text">
+          <span className="text-[10px] text-content-tertiary">
             {mounted && lastUpdate ? lastUpdate.toLocaleTimeString() : "--:--:--"}
           </span>
           <WalletButton
@@ -272,9 +282,9 @@ export default function Dashboard() {
       {/* ═══ MAIN LAYOUT: 3 columns ═══ */}
       <main className="flex flex-1 overflow-hidden">
         {/* LEFT COLUMN: Interactive panels */}
-        <div className="flex w-[340px] flex-shrink-0 flex-col border-r border-monad-border bg-monad-dark">
+        <div className="flex w-[340px] flex-shrink-0 flex-col border-r border-border bg-surface-primary">
           {/* Tab selector */}
-          <div className="flex border-b border-monad-border">
+          <div className="flex border-b border-border">
             {(
               [
                 { key: "trade", label: "Trade" },
@@ -286,10 +296,10 @@ export default function Dashboard() {
               <button
                 key={key}
                 onClick={() => setActiveTab(key)}
-                className={`flex-1 py-2.5 text-xs font-medium uppercase tracking-wider transition-all ${
+                className={`flex-1 py-2.5 text-xs font-medium uppercase tracking-wider transition-interactive ${
                   activeTab === key
-                    ? "border-b-2 border-monad-purple bg-monad-card/30 text-monad-purple"
-                    : "text-monad-text hover:text-white"
+                    ? "border-b-2 border-accent-blue text-accent-blue"
+                    : "text-content-tertiary hover:text-content-primary"
                 }`}
               >
                 {label}
@@ -327,10 +337,10 @@ export default function Dashboard() {
             )}
           </div>
 
-          {/* Recent transactions */}
+          {/* Recent transactions drawer */}
           {recentTxs.length > 0 && (
-            <div className="border-t border-monad-border">
-              <div className="px-3 py-2 text-[10px] uppercase tracking-widest text-monad-text">
+            <div className="border-t border-border">
+              <div className="px-3 py-2 text-[10px] uppercase tracking-widest text-content-tertiary">
                 Recent Transactions
               </div>
               <div className="max-h-[120px] overflow-y-auto">
@@ -340,10 +350,10 @@ export default function Dashboard() {
                     href={getExplorerTxUrl(tx.hash)}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center justify-between border-t border-monad-border/30 px-3 py-1.5 text-[10px] hover:bg-monad-card/30"
+                    className="flex items-center justify-between border-t border-border-light px-3 py-1.5 text-[10px] transition-interactive hover:bg-surface-hover"
                   >
-                    <span className="text-monad-text">{tx.label}</span>
-                    <span className="font-mono text-monad-purple">
+                    <span className="text-content-secondary">{tx.label}</span>
+                    <span className="font-mono text-accent-blue">
                       {tx.hash.slice(0, 8)}...
                     </span>
                   </a>
@@ -358,12 +368,12 @@ export default function Dashboard() {
           {/* Top row: Heatmap + Metrics */}
           <div className="flex flex-1 overflow-hidden">
             {/* Heatmap */}
-            <div className="flex-1 border-b border-r border-monad-border bg-monad-dark">
+            <div className="flex-1 border-b border-r border-border bg-surface-primary">
               <Heatmap tickData={ticks.ticks} settlements={[]} />
             </div>
 
             {/* Metrics */}
-            <div className="w-[320px] flex-shrink-0 border-b border-monad-border bg-monad-dark">
+            <div className="w-[320px] flex-shrink-0 border-b border-border bg-surface-primary">
               <MetricsPanel
                 ordersPerBlock={metrics.ordersPerBlock}
                 totalOrders={metrics.totalOrders}
@@ -377,42 +387,42 @@ export default function Dashboard() {
           </div>
 
           {/* Bottom row: Order Feed (full width) */}
-          <div className="h-[280px] flex-shrink-0 bg-monad-dark">
+          <div className="h-[280px] flex-shrink-0 bg-surface-primary">
             <OrderFeed orders={orders} />
           </div>
         </div>
       </main>
 
       {/* ═══ BOTTOM STATUS BAR ═══ */}
-      <footer className="flex items-center justify-between border-t border-monad-border bg-monad-dark px-4 py-1 text-[10px] text-monad-text">
+      <footer className="flex items-center justify-between border-t border-border bg-surface-primary px-4 py-1 text-[10px] text-content-tertiary">
         <div className="flex items-center gap-3">
           <span>Chain: 10143</span>
-          <span className="text-monad-border">|</span>
+          <span className="text-border">|</span>
           <span>Epoch: {ticks.currentEpoch}</span>
-          <span className="text-monad-border">|</span>
+          <span className="text-border">|</span>
           <span>Blocks: {metrics.blocksProcessed}</span>
-          <span className="text-monad-border">|</span>
+          <span className="text-border">|</span>
           <span>Orders: {metrics.totalOrders}</span>
         </div>
         <div className="flex items-center gap-3">
           <span className="font-mono">testnet-rpc.monad.xyz</span>
-          <span className="text-monad-border">|</span>
+          <span className="text-border">|</span>
           <a
             href="https://testnet.monadvision.com"
             target="_blank"
             rel="noopener noreferrer"
-            className="text-monad-purple hover:underline"
+            className="text-accent-blue hover:underline"
           >
             Explorer
           </a>
           {address && (
             <>
-              <span className="text-monad-border">|</span>
+              <span className="text-border">|</span>
               <a
                 href={`https://testnet.monadvision.com/address/${address}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-monad-purple hover:underline"
+                className="text-accent-blue hover:underline"
               >
                 My Account
               </a>
