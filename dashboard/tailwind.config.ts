@@ -1,3 +1,7 @@
+// tailwind.config.ts
+// Tailwind CSS configuration for FlashGrid dashboard.
+// Defines a clean, Apple-inspired light color palette with neutral tones.
+
 import type { Config } from "tailwindcss";
 
 const config: Config = {
@@ -8,28 +12,47 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        monad: {
-          purple: "#836EF9",
-          dark: "#0D0B1A",
-          darker: "#080613",
-          card: "#141024",
-          border: "#2A2440",
-          text: "#A89EC8",
-          accent: "#00E5A0",
+        surface: {
+          primary: "#FFFFFF",
+          secondary: "#F5F5F7",
+          tertiary: "#E8E8ED",
+          hover: "#F0F0F2",
+        },
+        content: {
+          primary: "#1D1D1F",
+          secondary: "#6E6E73",
+          tertiary: "#86868B",
+          inverse: "#FFFFFF",
+        },
+        border: {
+          DEFAULT: "#D2D2D7",
+          light: "#E8E8ED",
+          focus: "#0071E3",
+        },
+        accent: {
+          blue: "#0071E3",
+          green: "#34C759",
+          red: "#FF3B30",
+          orange: "#FF9500",
         },
       },
       fontFamily: {
-        mono: ["JetBrains Mono", "Fira Code", "monospace"],
-      },
-      animation: {
-        "pulse-fast": "pulse 1s cubic-bezier(0.4, 0, 0.6, 1) infinite",
-        flash: "flash 0.5s ease-out",
-      },
-      keyframes: {
-        flash: {
-          "0%": { opacity: "1", transform: "scale(1.2)" },
-          "100%": { opacity: "0.7", transform: "scale(1)" },
-        },
+        sans: [
+          "-apple-system",
+          "BlinkMacSystemFont",
+          "SF Pro Text",
+          "Inter",
+          "Segoe UI",
+          "Roboto",
+          "Helvetica Neue",
+          "sans-serif",
+        ],
+        mono: [
+          "SF Mono",
+          "JetBrains Mono",
+          "Fira Code",
+          "monospace",
+        ],
       },
     },
   },
