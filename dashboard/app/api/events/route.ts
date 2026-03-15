@@ -1,3 +1,7 @@
+// route.ts (api/events)
+// GET endpoint that returns recent OrderPlaced events from the in-memory
+// event store. Accepts an optional ?limit query parameter.
+
 import { NextResponse } from "next/server";
 import { formatEther } from "viem";
 import { eventStore, startPolling } from "@/lib/indexer";

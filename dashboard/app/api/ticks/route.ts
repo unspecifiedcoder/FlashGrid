@@ -1,3 +1,7 @@
+// route.ts (api/ticks)
+// GET endpoint that reads all 20 tick states and the current epoch directly
+// from the FlashGrid contract on Monad testnet via the public RPC.
+
 import { NextResponse } from "next/server";
 import { createPublicClient, http, formatEther } from "viem";
 import { MONAD_TESTNET, ADDRESSES, FLASHGRID_ABI } from "@/lib/contract";

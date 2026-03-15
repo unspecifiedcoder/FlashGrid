@@ -1,3 +1,7 @@
+// route.ts (api/metrics)
+// GET endpoint that computes and returns live execution metrics: total orders,
+// orders per block histogram, total volume, success rate, active epoch/ticks.
+
 import { NextResponse } from "next/server";
 import { formatEther } from "viem";
 import { eventStore, getOrdersPerBlock, getActiveTicks, startPolling } from "@/lib/indexer";

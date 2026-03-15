@@ -1,3 +1,8 @@
+// route.ts (api/demo)
+// POST endpoint that runs a server-side demo sequence using the deployer
+// private key. Supports "quick" (10 orders) and "full" (20 orders) modes.
+// Deposits, places orders across multiple ticks, then settles all ticks.
+
 import { NextResponse } from "next/server";
 import {
   createPublicClient,
