@@ -1,3 +1,9 @@
+// Heatmap.tsx
+// Canvas-based real-time heatmap showing order liquidity across all 20 price
+// ticks over the last 60 seconds. Each cell's color intensity maps to the total
+// (YES + NO) liquidity at that tick at that moment. Uses a neutral blue-teal
+// gradient on a white background — no purple, no glow effects.
+
 "use client";
 
 import { useRef, useEffect, useCallback, useState } from "react";
@@ -29,7 +35,7 @@ export default function Heatmap({ tickData, settlements }: HeatmapProps) {
     value: number;
   } | null>(null);
 
-  // Track settlements for flash effect
+  // Track settlements for a brief flash highlight
   useEffect(() => {
     const now = Date.now();
     for (const s of settlements) {
@@ -37,7 +43,7 @@ export default function Heatmap({ tickData, settlements }: HeatmapProps) {
     }
   }, [settlements]);
 
-  // Push new data into history
+  // Push current tick data into the rolling history buffer
   useEffect(() => {
     const now = Date.now();
     const values = tickData.map((t) => {
@@ -48,11 +54,12 @@ export default function Heatmap({ tickData, settlements }: HeatmapProps) {
 
     historyRef.current.push({ time: now, ticks: values });
 
-    // Keep 60 seconds of history
+    // Keep only the most recent 60 seconds of snapshots
     const cutoff = now - 60000;
     historyRef.current = historyRef.current.filter((h) => h.time > cutoff);
   }, [tickData]);
 
+  // ── Canvas draw loop ──────────────────────────────────────────
   const draw = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -60,137 +67,139 @@ export default function Heatmap({ tickData, settlements }: HeatmapProps) {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
+    // Handle HiDPI / Retina displays
     const rect = canvas.getBoundingClientRect();
-    const dpr = window.devicePixelRatio || 1;
-    canvas.width = rect.width * dpr;
-    canvas.height = rect.height * dpr;
-    ctx.scale(dpr, dpr);
+    const devicePixelRatio = window.devicePixelRatio || 1;
+    canvas.width = rect.width * devicePixelRatio;
+    canvas.height = rect.height * devicePixelRatio;
+    ctx.scale(devicePixelRatio, devicePixelRatio);
 
     const width = rect.width;
     const height = rect.height;
     const padding = { top: 30, right: 20, bottom: 30, left: 60 };
-    const plotW = width - padding.left - padding.right;
-    const plotH = height - padding.top - padding.bottom;
+    const plotWidth = width - padding.left - padding.right;
+    const plotHeight = height - padding.top - padding.bottom;
 
-    // Clear
-    ctx.fillStyle = "#0D0B1A";
+    // Clear to white (light theme background)
+    ctx.fillStyle = "#FFFFFF";
     ctx.fillRect(0, 0, width, height);
 
     const history = historyRef.current;
     if (history.length === 0) {
-      // Draw empty state
-      ctx.fillStyle = "#A89EC8";
-      ctx.font = "14px 'JetBrains Mono', monospace";
+      // Empty state message
+      ctx.fillStyle = "#86868B"; // content-tertiary
+      ctx.font = "14px -apple-system, BlinkMacSystemFont, 'Inter', sans-serif";
       ctx.textAlign = "center";
-      ctx.fillText(
-        "Waiting for orders...",
-        width / 2,
-        height / 2
-      );
+      ctx.fillText("Waiting for orders...", width / 2, height / 2);
       animFrameRef.current = requestAnimationFrame(draw);
       return;
     }
 
-    const numCols = Math.min(history.length, 60);
-    const cellW = plotW / numCols;
-    const cellH = plotH / NUM_TICKS;
+    const numberOfColumns = Math.min(history.length, 60);
+    const cellWidth = plotWidth / numberOfColumns;
+    const cellHeight = plotHeight / NUM_TICKS;
 
-    // Find max value for color scaling
-    let maxVal = 0.001;
+    // Determine the max value across all history for normalization
+    let maxValue = 0.001;
     for (const entry of history) {
       for (const v of entry.ticks) {
-        if (v > maxVal) maxVal = v;
+        if (v > maxValue) maxValue = v;
       }
     }
 
     const now = Date.now();
 
-    // Draw cells
-    const startIdx = Math.max(0, history.length - numCols);
-    for (let col = 0; col < numCols; col++) {
-      const entry = history[startIdx + col];
+    // Draw each cell with a neutral blue-teal gradient
+    const startIndex = Math.max(0, history.length - numberOfColumns);
+    for (let col = 0; col < numberOfColumns; col++) {
+      const entry = history[startIndex + col];
       if (!entry) continue;
 
       for (let row = 0; row < NUM_TICKS; row++) {
         const value = entry.ticks[row] || 0;
-        const intensity = Math.min(value / maxVal, 1);
+        const intensity = Math.min(value / maxValue, 1);
 
-        const x = padding.left + col * cellW;
-        const y = padding.top + (NUM_TICKS - 1 - row) * cellH;
+        const x = padding.left + col * cellWidth;
+        const y = padding.top + (NUM_TICKS - 1 - row) * cellHeight;
 
-        // Color gradient: dark → blue → purple → red
-        let r, g, b;
+        // Color gradient on a light background:
+        // intensity 0.00 → near-white (#F5F5F7)
+        // intensity 0.25 → light blue (#C8DEE8)
+        // intensity 0.50 → medium teal (#5AACBE)
+        // intensity 0.75 → deep teal (#2490A8)
+        // intensity 1.00 → dark blue-teal (#0A6E88)
+        let r: number, g: number, b: number;
         if (intensity < 0.25) {
           const t = intensity / 0.25;
-          r = Math.floor(13 + t * 17);
-          g = Math.floor(11 + t * 30);
-          b = Math.floor(26 + t * 80);
+          r = Math.floor(245 - t * 45);  // 245 → 200
+          g = Math.floor(245 - t * 23);  // 245 → 222
+          b = Math.floor(247 - t * 15);  // 247 → 232
         } else if (intensity < 0.5) {
           const t = (intensity - 0.25) / 0.25;
-          r = Math.floor(30 + t * 101);
-          g = Math.floor(41 + t * 69);
-          b = Math.floor(106 + t * 143);
+          r = Math.floor(200 - t * 110); // 200 → 90
+          g = Math.floor(222 - t * 50);  // 222 → 172
+          b = Math.floor(232 - t * 42);  // 232 → 190
         } else if (intensity < 0.75) {
           const t = (intensity - 0.5) / 0.25;
-          r = Math.floor(131 + t * 124);
-          g = Math.floor(110 - t * 60);
-          b = Math.floor(249 - t * 149);
+          r = Math.floor(90 - t * 54);   // 90 → 36
+          g = Math.floor(172 - t * 28);  // 172 → 144
+          b = Math.floor(190 - t * 22);  // 190 → 168
         } else {
           const t = (intensity - 0.75) / 0.25;
-          r = Math.floor(255);
-          g = Math.floor(50 + t * 50);
-          b = Math.floor(100 - t * 60);
+          r = Math.floor(36 - t * 26);   // 36 → 10
+          g = Math.floor(144 - t * 34);  // 144 → 110
+          b = Math.floor(168 - t * 32);  // 168 → 136
         }
 
-        // Flash effect for settled ticks
+        // Flash effect for recently settled ticks (white flash that fades)
         const flashTime = flashRef.current.get(row);
         if (flashTime && now - flashTime < 500) {
           const flashIntensity = 1 - (now - flashTime) / 500;
-          r = Math.min(255, r + Math.floor(200 * flashIntensity));
-          g = Math.min(255, g + Math.floor(229 * flashIntensity));
-          b = Math.min(255, b + Math.floor(160 * flashIntensity));
+          r = Math.min(255, r + Math.floor((255 - r) * flashIntensity * 0.6));
+          g = Math.min(255, g + Math.floor((255 - g) * flashIntensity * 0.6));
+          b = Math.min(255, b + Math.floor((255 - b) * flashIntensity * 0.6));
         }
 
         ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
-        ctx.fillRect(x + 1, y + 1, cellW - 2, cellH - 2);
+        ctx.fillRect(x + 1, y + 1, cellWidth - 2, cellHeight - 2);
 
-        // Hover highlight
+        // Hover highlight ring
         if (
           hoveredCell &&
           hoveredCell.tick === row &&
-          col === numCols - 1 - hoveredCell.time
+          col === numberOfColumns - 1 - hoveredCell.time
         ) {
-          ctx.strokeStyle = "#00E5A0";
+          ctx.strokeStyle = "#0071E3"; // accent-blue
           ctx.lineWidth = 2;
-          ctx.strokeRect(x, y, cellW, cellH);
+          ctx.strokeRect(x, y, cellWidth, cellHeight);
         }
       }
     }
 
     // Y-axis labels (tick prices)
-    ctx.fillStyle = "#A89EC8";
-    ctx.font = "10px 'JetBrains Mono', monospace";
+    ctx.fillStyle = "#6E6E73"; // content-secondary
+    ctx.font = "10px -apple-system, BlinkMacSystemFont, 'Inter', sans-serif";
     ctx.textAlign = "right";
     for (let i = 0; i < NUM_TICKS; i += 2) {
-      const y = padding.top + (NUM_TICKS - 1 - i) * cellH + cellH / 2 + 3;
+      const y = padding.top + (NUM_TICKS - 1 - i) * cellHeight + cellHeight / 2 + 3;
       ctx.fillText(TICK_LABELS[i], padding.left - 5, y);
     }
 
-    // X-axis labels (time)
+    // X-axis time labels
     ctx.textAlign = "center";
     ctx.fillText("60s ago", padding.left, height - 5);
     ctx.fillText("now", width - padding.right, height - 5);
 
     // Title
-    ctx.fillStyle = "#e2e0ea";
-    ctx.font = "bold 12px 'JetBrains Mono', monospace";
+    ctx.fillStyle = "#1D1D1F"; // content-primary
+    ctx.font = "600 12px -apple-system, BlinkMacSystemFont, 'Inter', sans-serif";
     ctx.textAlign = "left";
     ctx.fillText("ORDER BOOK HEATMAP", padding.left, 18);
 
-    // Live indicator
-    ctx.fillStyle = "#00E5A0";
+    // Live indicator dot
+    ctx.fillStyle = "#34C759"; // accent-green
     ctx.beginPath();
-    ctx.arc(padding.left + 170, 14, 4, 0, Math.PI * 2);
+    ctx.arc(padding.left + 160, 14, 4, 0, Math.PI * 2);
     ctx.fill();
 
     animFrameRef.current = requestAnimationFrame(draw);
@@ -201,6 +210,7 @@ export default function Heatmap({ tickData, settlements }: HeatmapProps) {
     return () => cancelAnimationFrame(animFrameRef.current);
   }, [draw]);
 
+  // ── Mouse hover tracking for tooltip ──────────────────────────
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -209,13 +219,13 @@ export default function Heatmap({ tickData, settlements }: HeatmapProps) {
     const y = e.clientY - rect.top;
 
     const padding = { top: 30, right: 20, bottom: 30, left: 60 };
-    const plotW = rect.width - padding.left - padding.right;
-    const plotH = rect.height - padding.top - padding.bottom;
-    const cellW = plotW / 60;
-    const cellH = plotH / NUM_TICKS;
+    const plotWidth = rect.width - padding.left - padding.right;
+    const plotHeight = rect.height - padding.top - padding.bottom;
+    const cellWidth = plotWidth / 60;
+    const cellHeight = plotHeight / NUM_TICKS;
 
-    const col = Math.floor((x - padding.left) / cellW);
-    const row = NUM_TICKS - 1 - Math.floor((y - padding.top) / cellH);
+    const col = Math.floor((x - padding.left) / cellWidth);
+    const row = NUM_TICKS - 1 - Math.floor((y - padding.top) / cellHeight);
 
     if (row >= 0 && row < NUM_TICKS && col >= 0 && col < 60) {
       const history = historyRef.current;
@@ -235,12 +245,13 @@ export default function Heatmap({ tickData, settlements }: HeatmapProps) {
         onMouseMove={handleMouseMove}
         onMouseLeave={() => setHoveredCell(null)}
       />
+      {/* Floating tooltip card */}
       {hoveredCell && (
-        <div className="pointer-events-none absolute right-4 top-4 rounded border border-monad-border bg-monad-card px-3 py-2 text-xs">
-          <div className="text-monad-text">
+        <div className="pointer-events-none absolute right-4 top-4 rounded-lg border border-border bg-surface-primary px-3 py-2 text-xs shadow-sm">
+          <div className="text-content-secondary">
             Tick {hoveredCell.tick} ({TICK_LABELS[hoveredCell.tick]})
           </div>
-          <div className="text-monad-accent font-bold">
+          <div className="font-semibold text-accent-blue">
             {hoveredCell.value.toFixed(4)} MON
           </div>
         </div>
