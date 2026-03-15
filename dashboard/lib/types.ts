@@ -1,6 +1,9 @@
-// ═══════════════════════════════════════════════════════════
-//                    CONTRACT TYPES
-// ═══════════════════════════════════════════════════════════
+// types.ts
+// Shared TypeScript type definitions and constants for the FlashGrid dashboard.
+// Includes contract-level types, event types, API response shapes, and the
+// canonical list of tick prices/labels/colors used across all visual components.
+
+// ── Contract Types ──────────────────────────────────────────────
 
 export interface TickState {
   totalYesLiquidity: bigint;
@@ -16,9 +19,7 @@ export interface Order {
   epoch: number;
 }
 
-// ═══════════════════════════════════════════════════════════
-//                     EVENT TYPES
-// ═══════════════════════════════════════════════════════════
+// ── Event Types ─────────────────────────────────────────────────
 
 export interface OrderPlacedEvent {
   tick: number;
@@ -51,9 +52,7 @@ export interface EpochCompletedEvent {
   timestamp: number;
 }
 
-// ═══════════════════════════════════════════════════════════
-//                   DASHBOARD TYPES
-// ═══════════════════════════════════════════════════════════
+// ── Dashboard Types ─────────────────────────────────────────────
 
 export interface HeatmapCell {
   tick: number;
@@ -89,9 +88,7 @@ export interface LiveOrder {
   timestamp: number;
 }
 
-// ═══════════════════════════════════════════════════════════
-//                     API TYPES
-// ═══════════════════════════════════════════════════════════
+// ── API Response Types ──────────────────────────────────────────
 
 export interface EventsResponse {
   orders: LiveOrder[];
@@ -122,21 +119,27 @@ export interface TicksResponse {
   currentEpoch: number;
 }
 
-// ═══════════════════════════════════════════════════════════
-//                     CONSTANTS
-// ═══════════════════════════════════════════════════════════
+// ── Constants ───────────────────────────────────────────────────
 
+/** The number of discrete price ticks in each FlashGrid market. */
 export const NUM_TICKS = 20;
 
+/** Decimal prices for each tick: 0.05, 0.10, ..., 1.00 */
 export const TICK_PRICES = Array.from({ length: NUM_TICKS }, (_, i) =>
   ((i + 1) * 5) / 100
 );
 
+/** Human-readable price labels like "$0.05", "$0.10", etc. */
 export const TICK_LABELS = TICK_PRICES.map((p) => `$${p.toFixed(2)}`);
 
+/**
+ * A neutral color palette for the 20 ticks, progressing from cool steel-blue
+ * tones at low ticks through teal and warm slate at high ticks.
+ * No purple, no neon — just clean, distinguishable hues.
+ */
 export const TICK_COLORS = [
-  "#1e3a5f", "#1e4d6f", "#1e607f", "#1e738f", "#1e869f",
-  "#1e99af", "#1eacbf", "#1ebfcf", "#1ed2df", "#1ee5ef",
-  "#ef1ee5", "#df1ed2", "#cf1ebf", "#bf1eac", "#af1e99",
-  "#9f1e86", "#8f1e73", "#7f1e60", "#6f1e4d", "#5f1e3a",
+  "#3B82A0", "#3590A8", "#2F9EB0", "#29ACB8", "#23BAC0",
+  "#1DC8C8", "#2BB8B0", "#39A898", "#479880", "#558868",
+  "#5E8060", "#6B7858", "#787050", "#856848", "#926040",
+  "#9F5838", "#A85240", "#B04C48", "#B84650", "#C04058",
 ];
