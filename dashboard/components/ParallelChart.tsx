@@ -1,3 +1,9 @@
+// ParallelChart.tsx
+// Left-column "Compare" tab showing a side-by-side comparison of FlashGrid's
+// state-sharded parallel execution versus a sequential baseline. Includes
+// summary cards and a grouped bar chart using Recharts. Uses accent-blue for
+// the sharded bars and accent-orange for the sequential baseline.
+
 "use client";
 
 import {
@@ -9,7 +15,6 @@ import {
   Tooltip,
   Legend,
   ResponsiveContainer,
-  Cell,
 } from "recharts";
 
 interface ParallelChartProps {
@@ -29,7 +34,7 @@ interface ParallelChartProps {
   };
 }
 
-// Default benchmark data (pre-loaded from expected test results)
+/** Pre-loaded benchmark data from expected test results. */
 const DEFAULT_SHARDED = {
   ordersSubmitted: 200,
   blocksUsed: 2,
@@ -71,78 +76,82 @@ export default function ParallelChart({
     },
   ];
 
-  const speedup = (sequential.ordersPerBlock / sharded.ordersPerBlock) > 1
-    ? (sequential.ordersPerBlock / sharded.ordersPerBlock).toFixed(0)
-    : (sharded.ordersPerBlock / sequential.ordersPerBlock).toFixed(0);
+  // Calculate the speedup factor (always >= 1)
+  const speedupFactor =
+    sequential.ordersPerBlock / sharded.ordersPerBlock > 1
+      ? (sequential.ordersPerBlock / sharded.ordersPerBlock).toFixed(0)
+      : (sharded.ordersPerBlock / sequential.ordersPerBlock).toFixed(0);
 
   return (
     <div className="flex h-full flex-col">
-      {/* Header */}
-      <div className="flex items-center justify-between border-b border-monad-border px-4 py-3">
-        <h2 className="text-sm font-bold uppercase tracking-wider text-white">
+      {/* Header with speedup badge */}
+      <div className="flex items-center justify-between border-b border-border px-4 py-3">
+        <h2 className="text-sm font-semibold uppercase tracking-wider text-content-primary">
           Parallelism Comparison
         </h2>
-        <div className="glow-green rounded-full border border-monad-accent/30 bg-monad-accent/10 px-3 py-1 text-xs font-bold text-monad-accent">
-          {speedup}x Speedup
+        <div className="rounded-full border border-accent-green/40 bg-accent-green/8 px-3 py-1 text-xs font-semibold text-accent-green">
+          {speedupFactor}x Speedup
         </div>
       </div>
 
-      {/* Summary cards */}
+      {/* Summary cards — sharded vs. sequential */}
       <div className="grid grid-cols-2 gap-2 p-3">
-        <div className="rounded-lg border border-monad-purple/30 bg-monad-purple/10 p-3">
-          <div className="text-[10px] uppercase tracking-widest text-monad-purple">
+        {/* Sharded (FlashGrid) card */}
+        <div className="rounded-lg border border-accent-blue/30 bg-accent-blue/5 p-3">
+          <div className="text-[10px] uppercase tracking-widest text-accent-blue">
             FlashGrid (Sharded)
           </div>
           <div className="mt-2 space-y-1 text-xs">
             <div className="flex justify-between">
-              <span className="text-monad-text">Orders</span>
-              <span className="text-white">{sharded.ordersSubmitted}</span>
+              <span className="text-content-secondary">Orders</span>
+              <span className="text-content-primary">{sharded.ordersSubmitted}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-monad-text">Blocks</span>
-              <span className="font-bold text-monad-accent">
+              <span className="text-content-secondary">Blocks</span>
+              <span className="font-semibold text-accent-green">
                 {sharded.blocksUsed}
               </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-monad-text">Orders/Block</span>
-              <span className="font-bold text-monad-accent">
+              <span className="text-content-secondary">Orders/Block</span>
+              <span className="font-semibold text-accent-green">
                 ~{sharded.ordersPerBlock}
               </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-monad-text">Latency</span>
-              <span className="text-monad-accent">
+              <span className="text-content-secondary">Latency</span>
+              <span className="text-accent-green">
                 {sharded.avgLatency}ms
               </span>
             </div>
           </div>
         </div>
 
-        <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-3">
-          <div className="text-[10px] uppercase tracking-widest text-red-400">
+        {/* Sequential baseline card */}
+        <div className="rounded-lg border border-accent-orange/30 bg-accent-orange/5 p-3">
+          <div className="text-[10px] uppercase tracking-widest text-accent-orange">
             Sequential Baseline
           </div>
           <div className="mt-2 space-y-1 text-xs">
             <div className="flex justify-between">
-              <span className="text-monad-text">Orders</span>
-              <span className="text-white">{sequential.ordersSubmitted}</span>
+              <span className="text-content-secondary">Orders</span>
+              <span className="text-content-primary">{sequential.ordersSubmitted}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-monad-text">Blocks</span>
-              <span className="font-bold text-red-400">
+              <span className="text-content-secondary">Blocks</span>
+              <span className="font-semibold text-accent-orange">
                 {sequential.blocksUsed}
               </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-monad-text">Orders/Block</span>
-              <span className="font-bold text-red-400">
+              <span className="text-content-secondary">Orders/Block</span>
+              <span className="font-semibold text-accent-orange">
                 ~{sequential.ordersPerBlock}
               </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-monad-text">Latency</span>
-              <span className="text-red-400">
+              <span className="text-content-secondary">Latency</span>
+              <span className="text-accent-orange">
                 {sequential.avgLatency}ms
               </span>
             </div>
@@ -159,42 +168,45 @@ export default function ParallelChart({
           >
             <CartesianGrid
               strokeDasharray="3 3"
-              stroke="#2A2440"
+              stroke="#E8E8ED"
               vertical={false}
             />
             <XAxis
               dataKey="metric"
-              stroke="#A89EC8"
+              stroke="#86868B"
               fontSize={10}
               tickLine={false}
             />
             <YAxis
-              stroke="#A89EC8"
+              stroke="#86868B"
               fontSize={10}
               tickLine={false}
               axisLine={false}
             />
             <Tooltip
               contentStyle={{
-                backgroundColor: "#141024",
-                border: "1px solid #2A2440",
+                backgroundColor: "#FFFFFF",
+                border: "1px solid #D2D2D7",
                 borderRadius: "8px",
                 fontSize: "12px",
-                fontFamily: "JetBrains Mono, monospace",
+                fontFamily: "-apple-system, BlinkMacSystemFont, Inter, sans-serif",
               }}
-              labelStyle={{ color: "#A89EC8" }}
+              labelStyle={{ color: "#6E6E73" }}
             />
             <Legend
-              wrapperStyle={{ fontSize: "10px", fontFamily: "JetBrains Mono" }}
+              wrapperStyle={{
+                fontSize: "10px",
+                fontFamily: "-apple-system, BlinkMacSystemFont, Inter, sans-serif",
+              }}
             />
             <Bar
               dataKey="State-Sharded (FlashGrid)"
-              fill="#836EF9"
+              fill="#0071E3" /* accent-blue */
               radius={[4, 4, 0, 0]}
             />
             <Bar
               dataKey="Sequential Baseline"
-              fill="#FF6B6B"
+              fill="#FF9500" /* accent-orange */
               radius={[4, 4, 0, 0]}
             />
           </BarChart>
@@ -202,8 +214,8 @@ export default function ParallelChart({
       </div>
 
       {/* Footer insight */}
-      <div className="border-t border-monad-border px-4 py-2 text-center text-[10px] text-monad-text">
-        State-sharded architecture enables {speedup}x more orders per block by
+      <div className="border-t border-border px-4 py-2 text-center text-[10px] text-content-secondary">
+        State-sharded architecture enables {speedupFactor}x more orders per block by
         eliminating storage conflicts
       </div>
     </div>
