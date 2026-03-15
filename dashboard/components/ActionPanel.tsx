@@ -1,3 +1,9 @@
+// ActionPanel.tsx
+// Left-column settlement panel. Lists all ticks that currently have orders
+// and lets the user settle them individually or all at once. Displays the
+// current epoch number and a short explanation of how parallel settlement
+// works on Monad.
+
 "use client";
 
 import { useState } from "react";
@@ -29,6 +35,7 @@ export default function ActionPanel({
     message: string;
   } | null>(null);
 
+  /** Only ticks that have at least one order are shown as settleable. */
   const activeTicks = tickData.filter((t) => t.orderCount > 0);
 
   const handleSettleAll = async () => {
@@ -58,18 +65,18 @@ export default function ActionPanel({
   return (
     <div className="flex h-full flex-col">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-monad-border px-4 py-3">
-        <h2 className="text-sm font-bold uppercase tracking-wider text-white">
+      <div className="flex items-center justify-between border-b border-border px-4 py-3">
+        <h2 className="text-sm font-semibold uppercase tracking-wider text-content-primary">
           Settlement
         </h2>
-        <div className="rounded-full border border-monad-border bg-monad-card px-2 py-0.5 text-[10px] text-monad-text">
+        <div className="rounded-full border border-border bg-surface-secondary px-2 py-0.5 text-[10px] text-content-secondary">
           Epoch {currentEpoch}
         </div>
       </div>
 
       <div className="flex-1 overflow-y-auto p-4">
         {!connected ? (
-          <p className="text-center text-sm text-monad-text">
+          <p className="text-center text-sm text-content-secondary">
             Connect wallet to settle
           </p>
         ) : (
@@ -78,19 +85,19 @@ export default function ActionPanel({
             <button
               onClick={handleSettleAll}
               disabled={loading || activeTicks.length === 0}
-              className="w-full rounded-lg bg-monad-purple py-3 text-sm font-bold text-white transition-all hover:bg-monad-purple/80 disabled:opacity-40"
+              className="w-full rounded-lg bg-accent-blue py-3 text-sm font-semibold text-content-inverse transition-interactive hover:bg-accent-blue/85 disabled:opacity-40"
             >
               {loading ? "Settling..." : `Settle All (${activeTicks.length} active ticks)`}
             </button>
 
             {/* Active ticks list */}
             <div>
-              <div className="mb-2 text-[10px] uppercase tracking-widest text-monad-text">
+              <div className="mb-2 text-[10px] uppercase tracking-widest text-content-tertiary">
                 Active Ticks ({activeTicks.length}/{NUM_TICKS})
               </div>
 
               {activeTicks.length === 0 ? (
-                <div className="rounded-lg border border-monad-border/50 bg-monad-card/30 p-4 text-center text-xs text-monad-text">
+                <div className="rounded-lg border border-border-light bg-surface-secondary p-4 text-center text-xs text-content-secondary">
                   No active ticks. Place some orders first.
                 </div>
               ) : (
@@ -98,28 +105,28 @@ export default function ActionPanel({
                   {activeTicks.map((tick) => (
                     <div
                       key={tick.index}
-                      className="flex items-center justify-between rounded-lg border border-monad-border/30 bg-monad-card/20 px-3 py-2"
+                      className="flex items-center justify-between rounded-lg border border-border-light bg-surface-secondary px-3 py-2"
                     >
                       <div className="flex items-center gap-3">
-                        <span className="text-xs font-bold text-white">
+                        <span className="text-xs font-semibold text-content-primary">
                           {TICK_LABELS[tick.index]}
                         </span>
                         <div className="flex gap-2 text-[10px]">
-                          <span className="text-monad-accent">
+                          <span className="text-accent-green">
                             Y:{parseFloat(tick.yesLiquidity).toFixed(3)}
                           </span>
-                          <span className="text-red-400">
+                          <span className="text-accent-red">
                             N:{parseFloat(tick.noLiquidity).toFixed(3)}
                           </span>
                         </div>
-                        <span className="text-[10px] text-monad-text">
+                        <span className="text-[10px] text-content-tertiary">
                           {tick.orderCount} orders
                         </span>
                       </div>
                       <button
                         onClick={() => handleSettleTick(tick.index)}
                         disabled={loading}
-                        className="rounded border border-monad-purple/50 px-2 py-1 text-[10px] text-monad-purple hover:bg-monad-purple/10 disabled:opacity-40"
+                        className="rounded border border-accent-blue/50 px-2 py-1 text-[10px] text-accent-blue transition-interactive hover:bg-accent-blue/8 disabled:opacity-40"
                       >
                         Settle
                       </button>
@@ -129,9 +136,9 @@ export default function ActionPanel({
               )}
             </div>
 
-            {/* Info box */}
-            <div className="rounded-lg border border-monad-border/30 bg-monad-card/20 p-3 text-[10px] leading-relaxed text-monad-text">
-              <strong className="text-white">How settlement works:</strong>
+            {/* Explanation box */}
+            <div className="rounded-lg border border-border-light bg-surface-secondary p-3 text-[10px] leading-relaxed text-content-secondary">
+              <strong className="text-content-primary">How settlement works:</strong>
               <br />
               Each tick settles independently - matching YES and NO liquidity.
               On Monad, separate ticks settle in parallel with zero storage conflicts.
@@ -141,13 +148,13 @@ export default function ActionPanel({
         )}
       </div>
 
-      {/* Status */}
+      {/* Status toast */}
       {status && (
         <div
           className={`border-t px-4 py-2 text-xs ${
             status.type === "success"
-              ? "border-monad-accent/30 bg-monad-accent/10 text-monad-accent"
-              : "border-red-500/30 bg-red-500/10 text-red-400"
+              ? "border-accent-green/30 bg-accent-green/8 text-accent-green"
+              : "border-accent-red/30 bg-accent-red/8 text-accent-red"
           }`}
         >
           {status.message}
