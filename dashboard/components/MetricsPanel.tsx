@@ -1,3 +1,10 @@
+// MetricsPanel.tsx
+// Right-column panel displaying live execution metrics: total orders, average
+// orders per block, success rate, average latency, active epoch, active ticks,
+// total volume, and an orders-per-block line chart. Uses Recharts with the
+// light Apple-inspired palette — accent-blue for the line, neutral grays for
+// axes and grid.
+
 "use client";
 
 import {
@@ -20,6 +27,7 @@ interface MetricsPanelProps {
   activeTicks: number;
 }
 
+/** Reusable stat card for a single metric value. */
 function StatCard({
   label,
   value,
@@ -32,19 +40,19 @@ function StatCard({
   color?: string;
 }) {
   return (
-    <div className="rounded-lg border border-monad-border bg-monad-card/50 px-3 py-2">
-      <div className="text-[10px] uppercase tracking-widest text-monad-text">
+    <div className="rounded-lg border border-border-light bg-surface-secondary px-3 py-2">
+      <div className="text-[10px] uppercase tracking-widest text-content-tertiary">
         {label}
       </div>
       <div className="stat-value mt-1 flex items-baseline gap-1">
         <span
-          className="text-xl font-bold"
-          style={{ color: color || "#e2e0ea" }}
+          className="text-xl font-semibold"
+          style={{ color: color || "#1D1D1F" }}
         >
           {value}
         </span>
         {unit && (
-          <span className="text-xs text-monad-text">{unit}</span>
+          <span className="text-xs text-content-tertiary">{unit}</span>
         )}
       </div>
     </div>
@@ -65,7 +73,7 @@ export default function MetricsPanel({
     orders: count,
   }));
 
-  const avgOrders =
+  const averageOrdersPerBlock =
     ordersPerBlock.length > 0
       ? Math.round(
           ordersPerBlock.reduce((a, b) => a + b, 0) / ordersPerBlock.length
@@ -75,8 +83,8 @@ export default function MetricsPanel({
   return (
     <div className="flex h-full flex-col">
       {/* Header */}
-      <div className="border-b border-monad-border px-4 py-3">
-        <h2 className="text-sm font-bold uppercase tracking-wider text-white">
+      <div className="border-b border-border px-4 py-3">
+        <h2 className="text-sm font-semibold uppercase tracking-wider text-content-primary">
           Execution Metrics
         </h2>
       </div>
@@ -86,47 +94,47 @@ export default function MetricsPanel({
         <StatCard
           label="Total Orders"
           value={totalOrders.toLocaleString()}
-          color="#836EF9"
+          color="#0071E3" /* accent-blue */
         />
         <StatCard
           label="Orders/Block"
-          value={avgOrders}
+          value={averageOrdersPerBlock}
           unit="avg"
-          color="#00E5A0"
+          color="#34C759" /* accent-green */
         />
         <StatCard
           label="Success Rate"
           value={`${successRate}`}
           unit="%"
-          color="#00E5A0"
+          color="#34C759"
         />
         <StatCard
           label="Avg Latency"
           value={avgLatency}
           unit="ms"
-          color={avgLatency < 500 ? "#00E5A0" : "#FF6B6B"}
+          color={avgLatency < 500 ? "#34C759" : "#FF3B30"}
         />
         <StatCard label="Active Epoch" value={activeEpoch} />
         <StatCard
           label="Active Ticks"
           value={`${activeTicks}/20`}
-          color="#836EF9"
+          color="#0071E3"
         />
       </div>
 
-      {/* Volume */}
+      {/* Volume card (full width) */}
       <div className="px-3">
         <StatCard
           label="Total Volume"
           value={parseFloat(totalVolume).toFixed(2)}
           unit="MON"
-          color="#836EF9"
+          color="#0071E3"
         />
       </div>
 
-      {/* Orders per block chart */}
+      {/* Orders-per-block line chart */}
       <div className="flex-1 p-3">
-        <div className="text-[10px] uppercase tracking-widest text-monad-text mb-2">
+        <div className="mb-2 text-[10px] uppercase tracking-widest text-content-tertiary">
           Orders / Block
         </div>
         {chartData.length > 0 ? (
@@ -134,44 +142,44 @@ export default function MetricsPanel({
             <LineChart data={chartData}>
               <CartesianGrid
                 strokeDasharray="3 3"
-                stroke="#2A2440"
+                stroke="#E8E8ED" /* border-light */
                 vertical={false}
               />
               <XAxis
                 dataKey="block"
-                stroke="#A89EC8"
+                stroke="#86868B"
                 fontSize={10}
                 tickLine={false}
               />
               <YAxis
-                stroke="#A89EC8"
+                stroke="#86868B"
                 fontSize={10}
                 tickLine={false}
                 axisLine={false}
               />
               <Tooltip
                 contentStyle={{
-                  backgroundColor: "#141024",
-                  border: "1px solid #2A2440",
+                  backgroundColor: "#FFFFFF",
+                  border: "1px solid #D2D2D7",
                   borderRadius: "8px",
                   fontSize: "12px",
-                  fontFamily: "JetBrains Mono, monospace",
+                  fontFamily: "-apple-system, BlinkMacSystemFont, Inter, sans-serif",
                 }}
-                labelStyle={{ color: "#A89EC8" }}
-                itemStyle={{ color: "#00E5A0" }}
+                labelStyle={{ color: "#6E6E73" }}
+                itemStyle={{ color: "#0071E3" }}
               />
               <Line
                 type="monotone"
                 dataKey="orders"
-                stroke="#836EF9"
+                stroke="#0071E3" /* accent-blue */
                 strokeWidth={2}
                 dot={false}
-                activeDot={{ r: 4, fill: "#00E5A0" }}
+                activeDot={{ r: 4, fill: "#34C759" }}
               />
             </LineChart>
           </ResponsiveContainer>
         ) : (
-          <div className="flex h-full items-center justify-center text-xs text-monad-text">
+          <div className="flex h-full items-center justify-center text-xs text-content-secondary">
             Chart data will appear during load test
           </div>
         )}
