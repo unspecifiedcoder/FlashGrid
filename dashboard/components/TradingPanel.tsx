@@ -1,6 +1,14 @@
+// TradingPanel.tsx
+// Left-column panel for deposit/withdraw and order placement.
+// Contains two sub-tabs: "Deposit / Withdraw" and "Place Order".
+// All interactive elements use the light Apple-inspired palette with
+// accent-blue for primary actions and accent-green/accent-red for
+// YES/NO sides. The wallet icon uses lucide-react.
+
 "use client";
 
 import { useState } from "react";
+import { Wallet } from "lucide-react";
 import { TICK_LABELS, TICK_PRICES, NUM_TICKS } from "@/lib/types";
 
 interface TradingPanelProps {
@@ -76,23 +84,21 @@ export default function TradingPanel({
     setLoading(false);
   };
 
+  // ── Not connected placeholder ─────────────────────────────────
   if (!connected) {
     return (
       <div className="flex h-full flex-col">
-        <div className="border-b border-monad-border px-4 py-3">
-          <h2 className="text-sm font-bold uppercase tracking-wider text-white">
+        <div className="border-b border-border px-4 py-3">
+          <h2 className="text-sm font-semibold uppercase tracking-wider text-content-primary">
             Trading
           </h2>
         </div>
         <div className="flex flex-1 items-center justify-center p-6">
           <div className="text-center">
-            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full border border-monad-border bg-monad-card">
-              <svg width="20" height="20" viewBox="0 0 16 16" fill="none">
-                <rect x="1" y="3" width="14" height="10" rx="2" stroke="#836EF9" strokeWidth="1.5" />
-                <path d="M11 8.5C11 9.05 10.55 9.5 10 9.5C9.45 9.5 9 9.05 9 8.5C9 7.95 9.45 7.5 10 7.5C10.55 7.5 11 7.95 11 8.5Z" fill="#836EF9" />
-              </svg>
+            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full border border-border bg-surface-secondary">
+              <Wallet size={20} className="text-accent-blue" />
             </div>
-            <p className="text-sm text-monad-text">
+            <p className="text-sm text-content-secondary">
               Connect your wallet to start trading
             </p>
           </div>
@@ -101,56 +107,57 @@ export default function TradingPanel({
     );
   }
 
+  // ── Connected — full panel ────────────────────────────────────
   return (
     <div className="flex h-full flex-col">
       {/* Header */}
-      <div className="border-b border-monad-border px-4 py-3">
-        <h2 className="text-sm font-bold uppercase tracking-wider text-white">
+      <div className="border-b border-border px-4 py-3">
+        <h2 className="text-sm font-semibold uppercase tracking-wider text-content-primary">
           Trading
         </h2>
       </div>
 
-      {/* Tabs */}
-      <div className="flex border-b border-monad-border">
+      {/* Sub-tabs */}
+      <div className="flex border-b border-border">
         <button
           onClick={() => setTab("deposit")}
-          className={`flex-1 py-2 text-xs font-medium uppercase transition-all ${
+          className={`flex-1 py-2 text-xs font-medium uppercase transition-interactive ${
             tab === "deposit"
-              ? "border-b-2 border-monad-purple text-monad-purple"
-              : "text-monad-text hover:text-white"
+              ? "border-b-2 border-accent-blue text-accent-blue"
+              : "text-content-tertiary hover:text-content-primary"
           }`}
         >
           Deposit / Withdraw
         </button>
         <button
           onClick={() => setTab("order")}
-          className={`flex-1 py-2 text-xs font-medium uppercase transition-all ${
+          className={`flex-1 py-2 text-xs font-medium uppercase transition-interactive ${
             tab === "order"
-              ? "border-b-2 border-monad-purple text-monad-purple"
-              : "text-monad-text hover:text-white"
+              ? "border-b-2 border-accent-blue text-accent-blue"
+              : "text-content-tertiary hover:text-content-primary"
           }`}
         >
           Place Order
         </button>
       </div>
 
-      {/* Grid balance */}
-      <div className="border-b border-monad-border/50 bg-monad-card/30 px-4 py-2">
+      {/* Grid balance bar */}
+      <div className="border-b border-border-light bg-surface-secondary px-4 py-2">
         <div className="flex items-center justify-between">
-          <span className="text-[10px] uppercase text-monad-text">Grid Balance</span>
-          <span className="text-sm font-bold text-monad-accent">
+          <span className="text-[10px] uppercase text-content-tertiary">Grid Balance</span>
+          <span className="text-sm font-semibold text-accent-green">
             {parseFloat(gridBalance).toFixed(4)} MON
           </span>
         </div>
       </div>
 
-      {/* Content */}
+      {/* Content area */}
       <div className="flex-1 overflow-y-auto p-4">
         {tab === "deposit" ? (
           <div className="space-y-4">
-            {/* Deposit */}
+            {/* Deposit section */}
             <div>
-              <label className="mb-1 block text-[10px] uppercase tracking-widest text-monad-text">
+              <label className="mb-1 block text-[10px] uppercase tracking-widest text-content-tertiary">
                 Deposit MON
               </label>
               <div className="flex gap-2">
@@ -160,13 +167,13 @@ export default function TradingPanel({
                   onChange={(e) => setDepositAmount(e.target.value)}
                   step="0.01"
                   min="0"
-                  className="flex-1 rounded-lg border border-monad-border bg-monad-darker px-3 py-2 text-sm text-white outline-none focus:border-monad-purple"
+                  className="flex-1 rounded-lg border border-border bg-surface-secondary px-3 py-2 text-sm text-content-primary outline-none transition-interactive focus:border-accent-blue"
                   placeholder="0.1"
                 />
                 <button
                   onClick={handleDeposit}
                   disabled={loading}
-                  className="rounded-lg bg-monad-purple px-4 py-2 text-xs font-bold text-white transition-all hover:bg-monad-purple/80 disabled:opacity-50"
+                  className="rounded-lg bg-accent-blue px-4 py-2 text-xs font-semibold text-content-inverse transition-interactive hover:bg-accent-blue/85 disabled:opacity-50"
                 >
                   {loading ? "..." : "Deposit"}
                 </button>
@@ -176,7 +183,7 @@ export default function TradingPanel({
                   <button
                     key={v}
                     onClick={() => setDepositAmount(v)}
-                    className="rounded border border-monad-border px-2 py-0.5 text-[10px] text-monad-text hover:border-monad-purple hover:text-monad-purple"
+                    className="rounded border border-border px-2 py-0.5 text-[10px] text-content-tertiary transition-interactive hover:border-accent-blue hover:text-accent-blue"
                   >
                     {v}
                   </button>
@@ -186,14 +193,14 @@ export default function TradingPanel({
 
             {/* Divider */}
             <div className="flex items-center gap-2">
-              <div className="h-px flex-1 bg-monad-border" />
-              <span className="text-[10px] text-monad-text">OR</span>
-              <div className="h-px flex-1 bg-monad-border" />
+              <div className="h-px flex-1 bg-border" />
+              <span className="text-[10px] text-content-tertiary">OR</span>
+              <div className="h-px flex-1 bg-border" />
             </div>
 
-            {/* Withdraw */}
+            {/* Withdraw section */}
             <div>
-              <label className="mb-1 block text-[10px] uppercase tracking-widest text-monad-text">
+              <label className="mb-1 block text-[10px] uppercase tracking-widest text-content-tertiary">
                 Withdraw MON
               </label>
               <div className="flex gap-2">
@@ -203,20 +210,20 @@ export default function TradingPanel({
                   onChange={(e) => setWithdrawAmount(e.target.value)}
                   step="0.01"
                   min="0"
-                  className="flex-1 rounded-lg border border-monad-border bg-monad-darker px-3 py-2 text-sm text-white outline-none focus:border-monad-purple"
+                  className="flex-1 rounded-lg border border-border bg-surface-secondary px-3 py-2 text-sm text-content-primary outline-none transition-interactive focus:border-accent-blue"
                   placeholder={gridBalance}
                 />
                 <button
                   onClick={handleWithdraw}
                   disabled={loading}
-                  className="rounded-lg border border-red-500/50 bg-red-500/10 px-4 py-2 text-xs font-bold text-red-400 transition-all hover:bg-red-500/20 disabled:opacity-50"
+                  className="rounded-lg border border-accent-red/50 bg-accent-red/8 px-4 py-2 text-xs font-semibold text-accent-red transition-interactive hover:bg-accent-red/15 disabled:opacity-50"
                 >
                   {loading ? "..." : "Withdraw"}
                 </button>
               </div>
               <button
                 onClick={() => setWithdrawAmount(gridBalance)}
-                className="mt-1 rounded border border-monad-border px-2 py-0.5 text-[10px] text-monad-text hover:border-red-500 hover:text-red-400"
+                className="mt-1 rounded border border-border px-2 py-0.5 text-[10px] text-content-tertiary transition-interactive hover:border-accent-red hover:text-accent-red"
               >
                 Max
               </button>
@@ -226,26 +233,26 @@ export default function TradingPanel({
           <div className="space-y-4">
             {/* Side selection */}
             <div>
-              <label className="mb-1 block text-[10px] uppercase tracking-widest text-monad-text">
+              <label className="mb-1 block text-[10px] uppercase tracking-widest text-content-tertiary">
                 Side
               </label>
               <div className="flex gap-2">
                 <button
                   onClick={() => setOrderSide("YES")}
-                  className={`flex-1 rounded-lg py-2.5 text-sm font-bold transition-all ${
+                  className={`flex-1 rounded-lg py-2.5 text-sm font-semibold transition-interactive ${
                     orderSide === "YES"
-                      ? "bg-monad-accent text-monad-darker"
-                      : "border border-monad-border text-monad-text hover:border-monad-accent hover:text-monad-accent"
+                      ? "bg-accent-green text-content-inverse"
+                      : "border border-border text-content-tertiary hover:border-accent-green hover:text-accent-green"
                   }`}
                 >
                   YES
                 </button>
                 <button
                   onClick={() => setOrderSide("NO")}
-                  className={`flex-1 rounded-lg py-2.5 text-sm font-bold transition-all ${
+                  className={`flex-1 rounded-lg py-2.5 text-sm font-semibold transition-interactive ${
                     orderSide === "NO"
-                      ? "bg-red-500 text-white"
-                      : "border border-monad-border text-monad-text hover:border-red-500 hover:text-red-400"
+                      ? "bg-accent-red text-content-inverse"
+                      : "border border-border text-content-tertiary hover:border-accent-red hover:text-accent-red"
                   }`}
                 >
                   NO
@@ -253,9 +260,9 @@ export default function TradingPanel({
               </div>
             </div>
 
-            {/* Tick selection */}
+            {/* Tick selection slider */}
             <div>
-              <label className="mb-1 block text-[10px] uppercase tracking-widest text-monad-text">
+              <label className="mb-1 block text-[10px] uppercase tracking-widest text-content-tertiary">
                 Price Tick: {TICK_LABELS[orderTick]}
               </label>
               <input
@@ -264,9 +271,9 @@ export default function TradingPanel({
                 max={NUM_TICKS - 1}
                 value={orderTick}
                 onChange={(e) => setOrderTick(parseInt(e.target.value))}
-                className="w-full accent-monad-purple"
+                className="w-full accent-accent-blue"
               />
-              <div className="mt-1 flex justify-between text-[9px] text-monad-text">
+              <div className="mt-1 flex justify-between text-[9px] text-content-tertiary">
                 <span>$0.05</span>
                 <span>$0.50</span>
                 <span>$1.00</span>
@@ -275,7 +282,7 @@ export default function TradingPanel({
 
             {/* Amount */}
             <div>
-              <label className="mb-1 block text-[10px] uppercase tracking-widest text-monad-text">
+              <label className="mb-1 block text-[10px] uppercase tracking-widest text-content-tertiary">
                 Amount (MON)
               </label>
               <input
@@ -284,7 +291,7 @@ export default function TradingPanel({
                 onChange={(e) => setOrderAmount(e.target.value)}
                 step="0.001"
                 min="0"
-                className="w-full rounded-lg border border-monad-border bg-monad-darker px-3 py-2 text-sm text-white outline-none focus:border-monad-purple"
+                className="w-full rounded-lg border border-border bg-surface-secondary px-3 py-2 text-sm text-content-primary outline-none transition-interactive focus:border-accent-blue"
                 placeholder="0.01"
               />
               <div className="mt-1 flex gap-1">
@@ -292,7 +299,7 @@ export default function TradingPanel({
                   <button
                     key={v}
                     onClick={() => setOrderAmount(v)}
-                    className="rounded border border-monad-border px-2 py-0.5 text-[10px] text-monad-text hover:border-monad-purple hover:text-monad-purple"
+                    className="rounded border border-border px-2 py-0.5 text-[10px] text-content-tertiary transition-interactive hover:border-accent-blue hover:text-accent-blue"
                   >
                     {v}
                   </button>
@@ -300,14 +307,14 @@ export default function TradingPanel({
               </div>
             </div>
 
-            {/* Submit */}
+            {/* Submit button */}
             <button
               onClick={handlePlaceOrder}
               disabled={loading}
-              className={`w-full rounded-lg py-3 text-sm font-bold transition-all disabled:opacity-50 ${
+              className={`w-full rounded-lg py-3 text-sm font-semibold transition-interactive disabled:opacity-50 ${
                 orderSide === "YES"
-                  ? "bg-monad-accent text-monad-darker hover:bg-monad-accent/80"
-                  : "bg-red-500 text-white hover:bg-red-500/80"
+                  ? "bg-accent-green text-content-inverse hover:bg-accent-green/85"
+                  : "bg-accent-red text-content-inverse hover:bg-accent-red/85"
               }`}
             >
               {loading
@@ -315,25 +322,25 @@ export default function TradingPanel({
                 : `Place ${orderSide} Order at ${TICK_LABELS[orderTick]}`}
             </button>
 
-            {/* Order summary */}
-            <div className="rounded-lg border border-monad-border/50 bg-monad-card/30 p-3 text-xs">
-              <div className="flex justify-between text-monad-text">
+            {/* Order summary card */}
+            <div className="rounded-lg border border-border-light bg-surface-secondary p-3 text-xs">
+              <div className="flex justify-between text-content-secondary">
                 <span>Side</span>
-                <span className={orderSide === "YES" ? "text-monad-accent" : "text-red-400"}>
+                <span className={orderSide === "YES" ? "text-accent-green" : "text-accent-red"}>
                   {orderSide}
                 </span>
               </div>
-              <div className="flex justify-between text-monad-text">
+              <div className="flex justify-between text-content-secondary">
                 <span>Tick Price</span>
-                <span className="text-white">{TICK_LABELS[orderTick]}</span>
+                <span className="text-content-primary">{TICK_LABELS[orderTick]}</span>
               </div>
-              <div className="flex justify-between text-monad-text">
+              <div className="flex justify-between text-content-secondary">
                 <span>Amount</span>
-                <span className="text-white">{orderAmount} MON</span>
+                <span className="text-content-primary">{orderAmount} MON</span>
               </div>
-              <div className="flex justify-between text-monad-text">
+              <div className="flex justify-between text-content-secondary">
                 <span>Potential Payout</span>
-                <span className="font-bold text-monad-accent">
+                <span className="font-semibold text-accent-green">
                   {(parseFloat(orderAmount || "0") * 2).toFixed(4)} MON
                 </span>
               </div>
@@ -342,13 +349,13 @@ export default function TradingPanel({
         )}
       </div>
 
-      {/* Status message */}
+      {/* Transaction status toast */}
       {txStatus && (
         <div
           className={`border-t px-4 py-2 text-xs ${
             txStatus.type === "success"
-              ? "border-monad-accent/30 bg-monad-accent/10 text-monad-accent"
-              : "border-red-500/30 bg-red-500/10 text-red-400"
+              ? "border-accent-green/30 bg-accent-green/8 text-accent-green"
+              : "border-accent-red/30 bg-accent-red/8 text-accent-red"
           }`}
         >
           {txStatus.type === "success" ? "OK" : "ERR"}: {txStatus.message}
