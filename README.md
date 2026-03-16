@@ -36,6 +36,18 @@ Monad's parallel execution engine detects **storage slot conflicts** at runtime.
 
 ## Quick Start
 
+## Dashboard Experience
+
+The dashboard is built to make Monad's parallel execution visible in real time, not just claim it in a benchmark table.
+
+- Light, Apple-inspired UI with a neutral palette for long demo sessions
+- Live order feed showing recent on-chain order placement as it lands
+- Canvas heatmap showing liquidity concentration across isolated price ticks
+- Metrics and comparison charts that make the sharded-vs-sequential story obvious
+- One-click demo mode for judges who want to see the full flow without funding a wallet
+
+The redesigned dashboard lives in `dashboard/` and talks directly to Monad testnet through the app API routes.
+
 ### Prerequisites
 
 - [Node.js](https://nodejs.org/) 18+
