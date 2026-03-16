@@ -7,7 +7,6 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Activity, Radio, ExternalLink } from "lucide-react";
 import Heatmap from "@/components/Heatmap";
 import OrderFeed from "@/components/OrderFeed";
 import MetricsPanel from "@/components/MetricsPanel";
@@ -35,6 +34,25 @@ import type { WalletClient, PublicClient } from "viem";
 
 /** How often (ms) the dashboard polls for fresh event/metrics/tick data. */
 const POLL_INTERVAL = 2000;
+
+function formatTransactionAge(timestamp: number): string {
+  const ageInSeconds = Math.max(0, Math.floor((Date.now() - timestamp) / 1000));
+
+  if (ageInSeconds < 5) {
+    return "just now";
+  }
+
+  if (ageInSeconds < 60) {
+    return `${ageInSeconds}s ago`;
+  }
+
+  const ageInMinutes = Math.floor(ageInSeconds / 60);
+  if (ageInMinutes < 60) {
+    return `${ageInMinutes}m ago`;
+  }
+
+  return `${Math.floor(ageInMinutes / 60)}h ago`;
+}
 
 export default function Dashboard() {
   // ── Wallet State ──────────────────────────────────────────────
@@ -350,10 +368,15 @@ export default function Dashboard() {
                     href={getExplorerTxUrl(tx.hash)}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center justify-between border-t border-border-light px-3 py-1.5 text-[10px] transition-interactive hover:bg-surface-hover"
+                    className="flex items-center justify-between gap-3 border-t border-border-light px-3 py-1.5 text-[10px] transition-interactive hover:bg-surface-hover"
                   >
-                    <span className="text-content-secondary">{tx.label}</span>
-                    <span className="font-mono text-accent-blue">
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-content-secondary">{tx.label}</div>
+                      <div className="text-[9px] text-content-tertiary">
+                        {mounted ? formatTransactionAge(tx.time) : "just now"}
+                      </div>
+                    </div>
+                    <span className="shrink-0 font-mono text-accent-blue">
                       {tx.hash.slice(0, 8)}...
                     </span>
                   </a>
