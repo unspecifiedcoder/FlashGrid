@@ -241,7 +241,7 @@ export default function Dashboard() {
 
   // ── Render ────────────────────────────────────────────────────
   return (
-    <div className="flex h-screen flex-col overflow-hidden bg-surface-secondary">
+    <div className="flex h-screen min-w-[1180px] flex-col overflow-x-auto overflow-y-hidden bg-surface-secondary">
       {/* ═══ TOP BAR ═══ */}
       <header className="flex items-center justify-between border-b border-border bg-surface-primary px-4 py-2.5">
         <div className="flex items-center gap-4">

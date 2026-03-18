@@ -73,6 +73,15 @@ export default function MetricsPanel({
     orders: count,
   }));
 
+  const formattedSuccessRate = Number.isFinite(successRate)
+    ? successRate.toFixed(1)
+    : "0.0";
+
+  const formattedTotalVolume = parseFloat(totalVolume || "0").toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+
   const averageOrdersPerBlock =
     ordersPerBlock.length > 0
       ? Math.round(
@@ -104,7 +113,7 @@ export default function MetricsPanel({
         />
         <StatCard
           label="Success Rate"
-          value={`${successRate}`}
+          value={formattedSuccessRate}
           unit="%"
           color="#34C759"
         />
@@ -126,7 +135,7 @@ export default function MetricsPanel({
       <div className="px-3">
         <StatCard
           label="Total Volume"
-          value={parseFloat(totalVolume).toFixed(2)}
+          value={formattedTotalVolume}
           unit="MON"
           color="#0071E3"
         />

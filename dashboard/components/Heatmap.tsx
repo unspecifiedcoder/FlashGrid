@@ -24,6 +24,18 @@ interface HistoryEntry {
   ticks: number[];
 }
 
+function getVisibleColumnCount(historyLength: number): number {
+  return Math.max(1, Math.min(historyLength, 60));
+}
+
+function formatHeatmapAge(columnOffsetFromLatest: number): string {
+  if (columnOffsetFromLatest <= 0) {
+    return "now";
+  }
+
+  return `${columnOffsetFromLatest}s ago`;
+}
+
 export default function Heatmap({ tickData, settlements }: HeatmapProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const historyRef = useRef<HistoryEntry[]>([]);
@@ -95,7 +107,7 @@ export default function Heatmap({ tickData, settlements }: HeatmapProps) {
       return;
     }
 
-    const numberOfColumns = Math.min(history.length, 60);
+    const numberOfColumns = getVisibleColumnCount(history.length);
     const cellWidth = plotWidth / numberOfColumns;
     const cellHeight = plotHeight / NUM_TICKS;
 
@@ -221,17 +233,18 @@ export default function Heatmap({ tickData, settlements }: HeatmapProps) {
     const padding = { top: 30, right: 20, bottom: 30, left: 60 };
     const plotWidth = rect.width - padding.left - padding.right;
     const plotHeight = rect.height - padding.top - padding.bottom;
-    const cellWidth = plotWidth / 60;
+    const visibleColumnCount = getVisibleColumnCount(historyRef.current.length);
+    const cellWidth = plotWidth / visibleColumnCount;
     const cellHeight = plotHeight / NUM_TICKS;
 
     const col = Math.floor((x - padding.left) / cellWidth);
     const row = NUM_TICKS - 1 - Math.floor((y - padding.top) / cellHeight);
 
-    if (row >= 0 && row < NUM_TICKS && col >= 0 && col < 60) {
+    if (row >= 0 && row < NUM_TICKS && col >= 0 && col < visibleColumnCount) {
       const history = historyRef.current;
-      const idx = history.length - 60 + col;
+      const idx = history.length - visibleColumnCount + col;
       const value = idx >= 0 && idx < history.length ? history[idx].ticks[row] : 0;
-      setHoveredCell({ tick: row, time: 59 - col, value });
+      setHoveredCell({ tick: row, time: visibleColumnCount - 1 - col, value });
     } else {
       setHoveredCell(null);
     }
@@ -250,6 +263,9 @@ export default function Heatmap({ tickData, settlements }: HeatmapProps) {
         <div className="pointer-events-none absolute right-4 top-4 rounded-lg border border-border bg-surface-primary px-3 py-2 text-xs shadow-sm">
           <div className="text-content-secondary">
             Tick {hoveredCell.tick} ({TICK_LABELS[hoveredCell.tick]})
+          </div>
+          <div className="text-[10px] text-content-tertiary">
+            {formatHeatmapAge(hoveredCell.time)}
           </div>
           <div className="font-semibold text-accent-blue">
             {hoveredCell.value.toFixed(4)} MON
