@@ -43,6 +43,17 @@ export interface TickSettledEvent {
   timestamp: number;
 }
 
+export interface SerializedTickSettledEvent {
+  tick: number;
+  epoch: number;
+  yesMatched: string;
+  noMatched: string;
+  clearingPrice: string;
+  blockNumber: number;
+  transactionHash: string;
+  timestamp: number;
+}
+
 export interface EpochCompletedEvent {
   epoch: number;
   totalVolume: bigint;
@@ -92,7 +103,7 @@ export interface LiveOrder {
 
 export interface EventsResponse {
   orders: LiveOrder[];
-  settlements: TickSettledEvent[];
+  settlements: SerializedTickSettledEvent[];
   total: number;
 }
 

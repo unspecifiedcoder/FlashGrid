@@ -16,9 +16,11 @@ import TradingPanel from "@/components/TradingPanel";
 import ActionPanel from "@/components/ActionPanel";
 import DemoPanel from "@/components/DemoPanel";
 import type {
+  EventsResponse,
   LiveOrder,
   MetricsResponse,
   TicksResponse,
+  SerializedTickSettledEvent,
 } from "@/lib/types";
 import {
   connectWallet,
@@ -64,6 +66,7 @@ export default function Dashboard() {
 
   // ── Data State ────────────────────────────────────────────────
   const [orders, setOrders] = useState<LiveOrder[]>([]);
+  const [settlements, setSettlements] = useState<SerializedTickSettledEvent[]>([]);
   const [metrics, setMetrics] = useState<MetricsResponse>({
     ordersPerBlock: [],
     totalOrders: 0,
@@ -214,8 +217,9 @@ export default function Dashboard() {
       ]);
 
       if (eventsRes.ok) {
-        const data = await eventsRes.json();
+        const data: EventsResponse = await eventsRes.json();
         setOrders(data.orders || []);
+        setSettlements(data.settlements || []);
       }
       if (metricsRes.ok) {
         const data = await metricsRes.json();
@@ -392,7 +396,7 @@ export default function Dashboard() {
           <div className="flex flex-1 overflow-hidden">
             {/* Heatmap */}
             <div className="flex-1 border-b border-r border-border bg-surface-primary">
-              <Heatmap tickData={ticks.ticks} settlements={[]} />
+              <Heatmap tickData={ticks.ticks} settlements={settlements} />
             </div>
 
             {/* Metrics */}
