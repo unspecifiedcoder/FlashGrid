@@ -18,6 +18,18 @@ interface DemoResult {
   ticksWithOrders: number;
 }
 
+function getStepStatusTone(status: string): string {
+  if (status.toLowerCase() === "success") {
+    return "border-accent-green/30 bg-accent-green/8 text-accent-green";
+  }
+
+  if (status.toLowerCase() === "pending") {
+    return "border-accent-orange/30 bg-accent-orange/8 text-accent-orange";
+  }
+
+  return "border-border bg-surface-secondary text-content-secondary";
+}
+
 export default function DemoPanel({ onComplete }: { onComplete?: () => void }) {
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState<DemoResult | null>(null);
@@ -218,9 +230,16 @@ export default function DemoPanel({ onComplete }: { onComplete?: () => void }) {
                     href={`https://testnet.monadvision.com/tx/${step.hash}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center justify-between border-b border-border-light px-3 py-1.5 text-[10px] last:border-b-0 transition-interactive hover:bg-surface-hover"
+                    className="flex items-center justify-between gap-3 border-b border-border-light px-3 py-1.5 text-[10px] last:border-b-0 transition-interactive hover:bg-surface-hover"
                   >
-                    <span className="text-content-secondary">{step.step}</span>
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-content-secondary">{step.step}</div>
+                      <div
+                        className={`mt-1 inline-flex rounded-full border px-1.5 py-0.5 text-[9px] uppercase tracking-wide ${getStepStatusTone(step.status)}`}
+                      >
+                        {step.status}
+                      </div>
+                    </div>
                     <span className="font-mono text-accent-blue">
                       {step.hash.slice(0, 8)}...
                     </span>
