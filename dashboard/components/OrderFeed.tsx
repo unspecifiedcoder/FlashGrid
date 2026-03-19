@@ -14,6 +14,20 @@ interface OrderFeedProps {
   orders: LiveOrder[];
 }
 
+function formatOrderAge(timestamp: number): string {
+  const ageInSeconds = Math.max(0, Math.floor((Date.now() - timestamp) / 1000));
+
+  if (ageInSeconds < 5) {
+    return "now";
+  }
+
+  if (ageInSeconds < 60) {
+    return `${ageInSeconds}s`;
+  }
+
+  return `${Math.floor(ageInSeconds / 60)}m`;
+}
+
 export default function OrderFeed({ orders }: OrderFeedProps) {
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -46,12 +60,13 @@ export default function OrderFeed({ orders }: OrderFeedProps) {
       </div>
 
       {/* Column headers */}
-      <div className="grid grid-cols-[40px_50px_80px_100px_60px] gap-2 border-b border-border-light px-4 py-2 text-[10px] uppercase tracking-widest text-content-tertiary">
+      <div className="grid grid-cols-[40px_50px_80px_100px_60px_44px] gap-2 border-b border-border-light px-4 py-2 text-[10px] uppercase tracking-widest text-content-tertiary">
         <span>Tick</span>
         <span>Side</span>
         <span>Amount</span>
         <span>Maker</span>
         <span>Block</span>
+        <span>Age</span>
       </div>
 
       {/* Order rows */}
@@ -67,7 +82,7 @@ export default function OrderFeed({ orders }: OrderFeedProps) {
           orders.map((order, idx) => (
             <div
               key={`${order.id}-${idx}`}
-              className="order-row grid grid-cols-[40px_50px_80px_100px_60px] gap-2 border-b border-border-light/50 px-4 py-2 text-xs transition-interactive hover:bg-surface-hover"
+              className="order-row grid grid-cols-[40px_50px_80px_100px_60px_44px] gap-2 border-b border-border-light/50 px-4 py-2 text-xs transition-interactive hover:bg-surface-hover"
             >
               {/* Tick with colored indicator stripe */}
               <div className="flex items-center gap-1">
@@ -104,6 +119,11 @@ export default function OrderFeed({ orders }: OrderFeedProps) {
               {/* Block number */}
               <span className="text-content-tertiary">
                 {order.blockNumber}
+              </span>
+
+              {/* Relative age */}
+              <span className="text-content-tertiary">
+                {formatOrderAge(order.timestamp)}
               </span>
             </div>
           ))

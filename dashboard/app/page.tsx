@@ -7,6 +7,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { RefreshCw } from "lucide-react";
 import Heatmap from "@/components/Heatmap";
 import OrderFeed from "@/components/OrderFeed";
 import MetricsPanel from "@/components/MetricsPanel";
@@ -16,9 +17,11 @@ import TradingPanel from "@/components/TradingPanel";
 import ActionPanel from "@/components/ActionPanel";
 import DemoPanel from "@/components/DemoPanel";
 import type {
+  EventsResponse,
   LiveOrder,
   MetricsResponse,
   TicksResponse,
+  SerializedTickSettledEvent,
 } from "@/lib/types";
 import {
   connectWallet,
@@ -64,6 +67,7 @@ export default function Dashboard() {
 
   // ── Data State ────────────────────────────────────────────────
   const [orders, setOrders] = useState<LiveOrder[]>([]);
+  const [settlements, setSettlements] = useState<SerializedTickSettledEvent[]>([]);
   const [metrics, setMetrics] = useState<MetricsResponse>({
     ordersPerBlock: [],
     totalOrders: 0,
@@ -87,6 +91,8 @@ export default function Dashboard() {
   });
   const [isLive, setIsLive] = useState(true);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [activeTab, setActiveTab] = useState<"trade" | "settle" | "demo" | "compare">(
     "trade"
@@ -207,27 +213,32 @@ export default function Dashboard() {
   // ── Data Polling ──────────────────────────────────────────────
   const fetchData = useCallback(async () => {
     try {
+      setIsRefreshing(true);
       const [eventsRes, metricsRes, ticksRes] = await Promise.all([
         fetch("/api/events?limit=100"),
         fetch("/api/metrics"),
         fetch("/api/ticks"),
       ]);
 
-      if (eventsRes.ok) {
-        const data = await eventsRes.json();
-        setOrders(data.orders || []);
+      if (!eventsRes.ok || !metricsRes.ok || !ticksRes.ok) {
+        throw new Error("Dashboard data is temporarily stale. Retry in a moment.");
       }
-      if (metricsRes.ok) {
-        const data = await metricsRes.json();
-        setMetrics(data);
-      }
-      if (ticksRes.ok) {
-        const data = await ticksRes.json();
-        setTicks(data);
-      }
+
+      const eventsData: EventsResponse = await eventsRes.json();
+      const metricsData: MetricsResponse = await metricsRes.json();
+      const ticksData: TicksResponse = await ticksRes.json();
+
+      setOrders(eventsData.orders || []);
+      setSettlements(eventsData.settlements || []);
+      setMetrics(metricsData);
+      setTicks(ticksData);
+      setFetchError(null);
       setLastUpdate(new Date());
     } catch (err) {
       console.error("Failed to fetch data:", err);
+      setFetchError(err instanceof Error ? err.message : "Failed to refresh dashboard data.");
+    } finally {
+      setIsRefreshing(false);
     }
   }, []);
 
@@ -284,9 +295,22 @@ export default function Dashboard() {
         </div>
 
         <div className="flex items-center gap-3">
+          {fetchError && (
+            <span className="rounded-full border border-accent-orange/40 bg-accent-orange/8 px-2.5 py-1 text-[10px] text-accent-orange">
+              Stale data
+            </span>
+          )}
           <span className="text-[10px] text-content-tertiary">
             {mounted && lastUpdate ? lastUpdate.toLocaleTimeString() : "--:--:--"}
           </span>
+          <button
+            onClick={() => void fetchData()}
+            disabled={isRefreshing}
+            className="flex items-center gap-1.5 rounded-lg border border-border bg-surface-secondary px-2.5 py-1.5 text-[10px] text-content-secondary transition-interactive hover:border-accent-blue hover:text-accent-blue disabled:opacity-50"
+          >
+            <RefreshCw size={12} className={isRefreshing ? "animate-spin" : undefined} />
+            Refresh
+          </button>
           <WalletButton
             address={address}
             monBalance={monBalance}
@@ -392,7 +416,7 @@ export default function Dashboard() {
           <div className="flex flex-1 overflow-hidden">
             {/* Heatmap */}
             <div className="flex-1 border-b border-r border-border bg-surface-primary">
-              <Heatmap tickData={ticks.ticks} settlements={[]} />
+              <Heatmap tickData={ticks.ticks} settlements={settlements} />
             </div>
 
             {/* Metrics */}
@@ -419,6 +443,7 @@ export default function Dashboard() {
       {/* ═══ BOTTOM STATUS BAR ═══ */}
       <footer className="flex items-center justify-between border-t border-border bg-surface-primary px-4 py-1 text-[10px] text-content-tertiary">
         <div className="flex items-center gap-3">
+          {fetchError && <span className="text-accent-orange">{fetchError}</span>}
           <span>Chain: 10143</span>
           <span className="text-border">|</span>
           <span>Epoch: {ticks.currentEpoch}</span>
