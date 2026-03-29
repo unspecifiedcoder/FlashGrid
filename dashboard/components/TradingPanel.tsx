@@ -21,10 +21,6 @@ interface TradingPanelProps {
 
 type Tab = "deposit" | "order";
 
-function formatMonAmount(amount: string, digits = 4): string {
-  return parseFloat(amount || "0").toFixed(digits);
-}
-
 export default function TradingPanel({
   connected,
   gridBalance,
@@ -43,10 +39,6 @@ export default function TradingPanel({
     type: "success" | "error";
     message: string;
   } | null>(null);
-
-  const availableGridBalance = parseFloat(gridBalance || "0");
-  const parsedOrderAmount = parseFloat(orderAmount || "0");
-  const orderExceedsBalance = parsedOrderAmount > availableGridBalance;
 
   const handleDeposit = async () => {
     if (!depositAmount || parseFloat(depositAmount) <= 0) return;
@@ -77,7 +69,7 @@ export default function TradingPanel({
   };
 
   const handlePlaceOrder = async () => {
-    if (!orderAmount || parseFloat(orderAmount) <= 0 || orderExceedsBalance) return;
+    if (!orderAmount || parseFloat(orderAmount) <= 0) return;
     setLoading(true);
     setTxStatus(null);
     try {
@@ -154,7 +146,7 @@ export default function TradingPanel({
         <div className="flex items-center justify-between">
           <span className="text-[10px] uppercase text-content-tertiary">Grid Balance</span>
           <span className="text-sm font-semibold text-accent-green">
-            {formatMonAmount(gridBalance)} MON
+            {parseFloat(gridBalance).toFixed(4)} MON
           </span>
         </div>
       </div>
@@ -312,24 +304,13 @@ export default function TradingPanel({
                     {v}
                   </button>
                 ))}
-                <button
-                  onClick={() => setOrderAmount(Math.min(availableGridBalance, 0.25).toFixed(3))}
-                  className="rounded border border-border px-2 py-0.5 text-[10px] text-content-tertiary transition-interactive hover:border-accent-blue hover:text-accent-blue"
-                >
-                  Quick Fill
-                </button>
               </div>
-              {orderExceedsBalance && (
-                <div className="mt-2 text-[10px] text-accent-red">
-                  Order amount exceeds available grid balance.
-                </div>
-              )}
             </div>
 
             {/* Submit button */}
             <button
               onClick={handlePlaceOrder}
-              disabled={loading || orderExceedsBalance}
+              disabled={loading}
               className={`w-full rounded-lg py-3 text-sm font-semibold transition-interactive disabled:opacity-50 ${
                 orderSide === "YES"
                   ? "bg-accent-green text-content-inverse hover:bg-accent-green/85"
@@ -355,12 +336,12 @@ export default function TradingPanel({
               </div>
               <div className="flex justify-between text-content-secondary">
                 <span>Amount</span>
-                <span className="text-content-primary">{formatMonAmount(orderAmount, 3)} MON</span>
+                <span className="text-content-primary">{orderAmount} MON</span>
               </div>
               <div className="flex justify-between text-content-secondary">
                 <span>Potential Payout</span>
                 <span className="font-semibold text-accent-green">
-                  {(Math.max(parsedOrderAmount, 0) * 2).toFixed(4)} MON
+                  {(parseFloat(orderAmount || "0") * 2).toFixed(4)} MON
                 </span>
               </div>
             </div>
