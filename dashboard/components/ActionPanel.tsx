@@ -36,23 +36,7 @@ export default function ActionPanel({
   } | null>(null);
 
   /** Only ticks that have at least one order are shown as settleable. */
-  const activeTicks = tickData
-    .filter((t) => t.orderCount > 0)
-    .sort((a, b) => {
-      const totalLiquidityA = parseFloat(a.yesLiquidity) + parseFloat(a.noLiquidity);
-      const totalLiquidityB = parseFloat(b.yesLiquidity) + parseFloat(b.noLiquidity);
-
-      if (totalLiquidityB !== totalLiquidityA) {
-        return totalLiquidityB - totalLiquidityA;
-      }
-
-      return b.orderCount - a.orderCount;
-    });
-
-  const totalActiveLiquidity = activeTicks.reduce(
-    (sum, tick) => sum + parseFloat(tick.yesLiquidity) + parseFloat(tick.noLiquidity),
-    0
-  );
+  const activeTicks = tickData.filter((t) => t.orderCount > 0);
 
   const handleSettleAll = async () => {
     setLoading(true);
@@ -111,11 +95,6 @@ export default function ActionPanel({
               <div className="mb-2 text-[10px] uppercase tracking-widest text-content-tertiary">
                 Active Ticks ({activeTicks.length}/{NUM_TICKS})
               </div>
-              {activeTicks.length > 0 && (
-                <div className="mb-2 rounded-lg border border-border-light bg-surface-secondary px-3 py-2 text-[10px] text-content-secondary">
-                  {totalActiveLiquidity.toFixed(4)} MON queued across the busiest settlement buckets.
-                </div>
-              )}
 
               {activeTicks.length === 0 ? (
                 <div className="rounded-lg border border-border-light bg-surface-secondary p-4 text-center text-xs text-content-secondary">

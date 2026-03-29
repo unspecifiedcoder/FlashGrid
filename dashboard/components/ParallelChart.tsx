@@ -82,9 +82,6 @@ export default function ParallelChart({
       ? (sequential.ordersPerBlock / sharded.ordersPerBlock).toFixed(0)
       : (sharded.ordersPerBlock / sequential.ordersPerBlock).toFixed(0);
 
-  const blockSavings = sequential.blocksUsed - sharded.blocksUsed;
-  const latencyReduction = Math.max(0, sequential.avgLatency - sharded.avgLatency);
-
   return (
     <div className="flex h-full flex-col">
       {/* Header with speedup badge */}
@@ -158,26 +155,6 @@ export default function ParallelChart({
                 {sequential.avgLatency}ms
               </span>
             </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Derived comparison callouts */}
-      <div className="grid grid-cols-2 gap-2 px-3 pb-3">
-        <div className="rounded-lg border border-border-light bg-surface-secondary px-3 py-2">
-          <div className="text-[10px] uppercase tracking-widest text-content-tertiary">
-            Block Savings
-          </div>
-          <div className="mt-1 text-sm font-semibold text-accent-blue">
-            {blockSavings} fewer blocks
-          </div>
-        </div>
-        <div className="rounded-lg border border-border-light bg-surface-secondary px-3 py-2">
-          <div className="text-[10px] uppercase tracking-widest text-content-tertiary">
-            Latency Reduction
-          </div>
-          <div className="mt-1 text-sm font-semibold text-accent-green">
-            {latencyReduction}ms faster
           </div>
         </div>
       </div>
