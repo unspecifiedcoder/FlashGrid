@@ -1,28 +1,20 @@
 // contract.ts
-// Network configuration, deployed contract addresses, and ABI definitions
-// for the FlashGrid smart contracts on Monad testnet.
+// Deployed contract addresses and ABI definitions for FlashGrid smart contracts.
+// Chain configuration is imported from chains.ts for multi-chain support.
 
 import { type Abi } from "viem";
 
-// ── Network Config ──────────────────────────────────────────────
+export { getChain, getChainId, getExplorerTxUrl, getExplorerAddressUrl } from "./chains";
 
-export const MONAD_TESTNET = {
-  id: 10143,
-  name: "Monad Testnet",
-  nativeCurrency: { name: "Monad", symbol: "MON", decimals: 18 },
-  rpcUrls: {
-    default: { http: ["https://testnet-rpc.monad.xyz"] },
-  },
-  blockExplorers: {
-    default: { name: "MonadVision", url: "https://testnet.monadvision.com" },
-  },
-} as const;
+// Re-export for backwards compat
+export { CHAINS } from "./chains";
+import { getChain } from "./chains";
+export const MONAD_TESTNET = getChain();
 
 // ═══════════════════════════════════════════════════════════
 //                  CONTRACT ADDRESSES
 // ═══════════════════════════════════════════════════════════
 
-// These should be updated after deployment
 export const ADDRESSES = {
   factory: process.env.NEXT_PUBLIC_FACTORY_ADDRESS || "0x0000000000000000000000000000000000000000",
   flashGrid: process.env.NEXT_PUBLIC_FLASHGRID_ADDRESS || "0x0000000000000000000000000000000000000000",
@@ -44,6 +36,13 @@ export const FLASHGRID_ABI = [
   },
   {
     type: "function",
+    name: "MIN_ORDER_SIZE",
+    inputs: [],
+    outputs: [{ type: "uint128" }],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
     name: "currentEpoch",
     inputs: [],
     outputs: [{ type: "uint32" }],
@@ -54,6 +53,34 @@ export const FLASHGRID_ABI = [
     name: "marketQuestion",
     inputs: [],
     outputs: [{ type: "string" }],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "resolver",
+    inputs: [],
+    outputs: [{ type: "address" }],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "resolved",
+    inputs: [],
+    outputs: [{ type: "bool" }],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "outcomeYes",
+    inputs: [],
+    outputs: [{ type: "bool" }],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "paused",
+    inputs: [],
+    outputs: [{ type: "bool" }],
     stateMutability: "view",
   },
   {
@@ -71,7 +98,7 @@ export const FLASHGRID_ABI = [
       { type: "uint128", name: "yesLiquidity" },
       { type: "uint128", name: "noLiquidity" },
       { type: "uint32", name: "orderCount" },
-      { type: "uint32", name: "lastMatchedEpoch" },
+      { type: "uint32", name: "lastSettledEpoch" },
     ],
     stateMutability: "view",
   },
@@ -86,7 +113,7 @@ export const FLASHGRID_ABI = [
           { type: "uint128", name: "totalYesLiquidity" },
           { type: "uint128", name: "totalNoLiquidity" },
           { type: "uint32", name: "orderCount" },
-          { type: "uint32", name: "lastMatchedEpoch" },
+          { type: "uint32", name: "lastSettledEpoch" },
         ],
       },
     ],
@@ -104,6 +131,8 @@ export const FLASHGRID_ABI = [
           { type: "uint128", name: "amount" },
           { type: "bool", name: "isYes" },
           { type: "uint32", name: "epoch" },
+          { type: "bool", name: "cancelled" },
+          { type: "bool", name: "claimed" },
         ],
       },
     ],
@@ -144,6 +173,23 @@ export const FLASHGRID_ABI = [
   },
   {
     type: "function",
+    name: "cancelOrder",
+    inputs: [
+      { type: "uint8", name: "tick" },
+      { type: "uint256", name: "orderIndex" },
+    ],
+    outputs: [],
+    stateMutability: "nonpayable",
+  },
+  {
+    type: "function",
+    name: "resolveMarket",
+    inputs: [{ type: "bool", name: "_outcomeYes" }],
+    outputs: [],
+    stateMutability: "nonpayable",
+  },
+  {
+    type: "function",
     name: "settleTick",
     inputs: [{ type: "uint8", name: "tick" }],
     outputs: [],
@@ -152,6 +198,20 @@ export const FLASHGRID_ABI = [
   {
     type: "function",
     name: "settleAll",
+    inputs: [],
+    outputs: [],
+    stateMutability: "nonpayable",
+  },
+  {
+    type: "function",
+    name: "pause",
+    inputs: [],
+    outputs: [],
+    stateMutability: "nonpayable",
+  },
+  {
+    type: "function",
+    name: "unpause",
     inputs: [],
     outputs: [],
     stateMutability: "nonpayable",
@@ -186,6 +246,16 @@ export const FLASHGRID_ABI = [
   },
   {
     type: "event",
+    name: "OrderCancelled",
+    inputs: [
+      { type: "uint8", name: "tick", indexed: true },
+      { type: "address", name: "maker", indexed: true },
+      { type: "uint256", name: "orderIndex", indexed: false },
+      { type: "uint128", name: "amount", indexed: false },
+    ],
+  },
+  {
+    type: "event",
     name: "TickSettled",
     inputs: [
       { type: "uint8", name: "tick", indexed: true },
@@ -202,6 +272,23 @@ export const FLASHGRID_ABI = [
       { type: "uint32", name: "epoch", indexed: false },
       { type: "uint256", name: "totalVolume", indexed: false },
       { type: "uint16", name: "ticksActive", indexed: false },
+    ],
+  },
+  {
+    type: "event",
+    name: "MarketResolved",
+    inputs: [
+      { type: "bool", name: "outcomeYes", indexed: false },
+      { type: "address", name: "resolvedBy", indexed: true },
+    ],
+  },
+  {
+    type: "event",
+    name: "PayoutClaimed",
+    inputs: [
+      { type: "uint8", name: "tick", indexed: true },
+      { type: "address", name: "maker", indexed: true },
+      { type: "uint256", name: "amount", indexed: false },
     ],
   },
 ] as const satisfies Abi;
@@ -243,7 +330,10 @@ export const FACTORY_ABI = [
   {
     type: "function",
     name: "createMarket",
-    inputs: [{ type: "string", name: "question" }],
+    inputs: [
+      { type: "string", name: "question" },
+      { type: "address", name: "_resolver" },
+    ],
     outputs: [{ type: "address" }],
     stateMutability: "nonpayable",
   },
@@ -268,6 +358,7 @@ export const FACTORY_ABI = [
       { type: "address", name: "market", indexed: true },
       { type: "string", name: "question", indexed: false },
       { type: "address", name: "creator", indexed: true },
+      { type: "address", name: "resolver", indexed: true },
       { type: "uint256", name: "index", indexed: false },
     ],
   },

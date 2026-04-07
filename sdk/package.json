@@ -1,0 +1,24 @@
+{
+  "name": "@flashgrid/sdk",
+  "version": "0.1.0",
+  "description": "TypeScript SDK for interacting with FlashGrid parallel batch auction markets",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": ["flashgrid", "prediction-market", "parallel", "defi", "sdk"],
+  "license": "MIT",
+  "dependencies": {
+    "viem": "^2.21.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "@types/node": "^22.0.0"
+  },
+  "peerDependencies": {
+    "viem": ">=2.0.0"
+  }
+}

@@ -2,15 +2,43 @@
 pragma solidity ^0.8.24;
 
 /// @title FlashGrid - Parallel Batch Auction Engine
-/// @notice State-sharded order matching engine optimized for Monad's parallel execution
-/// @dev Each price tick uses isolated storage slots to enable conflict-free parallel processing
+/// @notice State-sharded order matching engine optimized for parallel execution.
+/// @dev Each price tick uses isolated storage slots to enable conflict-free parallel processing.
+///      Settlement happens after market resolution — winners take the matched pot.
 contract FlashGrid {
+    // ═══════════════════════════════════════════════════════════
+    //                     REENTRANCY GUARD
+    // ═══════════════════════════════════════════════════════════
+
+    uint256 private constant _NOT_ENTERED = 1;
+    uint256 private constant _ENTERED = 2;
+    uint256 private _reentrancyStatus = _NOT_ENTERED;
+
+    modifier nonReentrant() {
+        require(_reentrancyStatus != _ENTERED, "ReentrancyGuard: reentrant call");
+        _reentrancyStatus = _ENTERED;
+        _;
+        _reentrancyStatus = _NOT_ENTERED;
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    //                        PAUSABLE
+    // ═══════════════════════════════════════════════════════════
+
+    bool private _paused;
+
+    modifier whenNotPaused() {
+        require(!_paused, "Pausable: paused");
+        _;
+    }
+
     // ═══════════════════════════════════════════════════════════
     //                        CONSTANTS
     // ═══════════════════════════════════════════════════════════
 
-    uint8 public constant NUM_TICKS = 20; // Price ticks: 0.05 to 1.00 (step 0.05)
-    uint32 public constant EPOCH_DURATION = 12; // Blocks per epoch
+    uint8 public constant NUM_TICKS = 20;
+    uint32 public constant EPOCH_DURATION = 12;
+    uint128 public constant MIN_ORDER_SIZE = 0.001 ether;
 
     // ═══════════════════════════════════════════════════════════
     //                         TYPES
@@ -20,7 +48,7 @@ contract FlashGrid {
         uint128 totalYesLiquidity;
         uint128 totalNoLiquidity;
         uint32 orderCount;
-        uint32 lastMatchedEpoch;
+        uint32 lastSettledEpoch;
     }
 
     struct Order {
@@ -28,19 +56,21 @@ contract FlashGrid {
         uint128 amount;
         bool isYes;
         uint32 epoch;
+        bool cancelled;
+        bool claimed;
     }
 
     // ═══════════════════════════════════════════════════════════
     //                         STORAGE
     // ═══════════════════════════════════════════════════════════
 
-    /// @notice Isolated tick state - each tick occupies its own storage slot range
+    /// @notice Isolated tick state — each tick occupies its own storage slot range
     mapping(uint8 => TickState) public ticks;
 
-    /// @notice Orders per tick - isolated arrays, no cross-tick conflicts
+    /// @notice Orders per tick — isolated arrays, no cross-tick conflicts
     mapping(uint8 => Order[]) public tickOrders;
 
-    /// @notice User balance ledger - only touched on deposit/withdraw
+    /// @notice User balance ledger — only touched on deposit/withdraw
     mapping(address => uint256) public balances;
 
     /// @notice Current epoch number
@@ -51,6 +81,11 @@ contract FlashGrid {
     address public factory;
     address public creator;
 
+    /// @notice Market resolution state
+    address public resolver;
+    bool public resolved;
+    bool public outcomeYes;
+
     // ═══════════════════════════════════════════════════════════
     //                         EVENTS
     // ═══════════════════════════════════════════════════════════
@@ -60,10 +95,15 @@ contract FlashGrid {
     event OrderPlaced(
         uint8 indexed tick, address indexed maker, uint128 amount, bool isYes, uint32 epoch
     );
+    event OrderCancelled(uint8 indexed tick, address indexed maker, uint256 orderIndex, uint128 amount);
     event TickSettled(
         uint8 indexed tick, uint32 epoch, uint128 yesMatched, uint128 noMatched, uint256 clearingPrice
     );
     event EpochCompleted(uint32 epoch, uint256 totalVolume, uint16 ticksActive);
+    event MarketResolved(bool outcomeYes, address indexed resolvedBy);
+    event PayoutClaimed(uint8 indexed tick, address indexed maker, uint256 amount);
+    event Paused(address account);
+    event Unpaused(address account);
 
     // ═══════════════════════════════════════════════════════════
     //                        ERRORS
@@ -72,34 +112,68 @@ contract FlashGrid {
     error InvalidTick();
     error InsufficientBalance();
     error ZeroAmount();
-    error AlreadySettled();
+    error OrderTooSmall();
     error WithdrawFailed();
+    error NotResolver();
+    error AlreadyResolved();
+    error NotResolved();
+    error NotOrderMaker();
+    error OrderAlreadyCancelled();
+    error OrderAlreadyClaimed();
+    error InvalidOrderIndex();
 
     // ═══════════════════════════════════════════════════════════
     //                      CONSTRUCTOR
     // ═══════════════════════════════════════════════════════════
 
-    constructor(string memory _marketQuestion, address _creator) {
+    constructor(string memory _marketQuestion, address _creator, address _resolver) {
         marketQuestion = _marketQuestion;
         creator = _creator;
+        resolver = _resolver;
         factory = msg.sender;
         currentEpoch = 1;
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    //                      MODIFIERS
+    // ═══════════════════════════════════════════════════════════
+
+    modifier onlyResolver() {
+        if (msg.sender != resolver) revert NotResolver();
+        _;
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    //                    ADMIN FUNCTIONS
+    // ═══════════════════════════════════════════════════════════
+
+    function pause() external onlyResolver {
+        _paused = true;
+        emit Paused(msg.sender);
+    }
+
+    function unpause() external onlyResolver {
+        _paused = false;
+        emit Unpaused(msg.sender);
+    }
+
+    function paused() external view returns (bool) {
+        return _paused;
     }
 
     // ═══════════════════════════════════════════════════════════
     //                    DEPOSIT / WITHDRAW
     // ═══════════════════════════════════════════════════════════
 
-    /// @notice Deposit MON to participate in markets
-    /// @dev Only touches balances[msg.sender] - no conflicts with order placement
-    function deposit() external payable {
+    /// @notice Deposit native token to participate in markets
+    function deposit() external payable whenNotPaused {
         if (msg.value == 0) revert ZeroAmount();
         balances[msg.sender] += msg.value;
         emit Deposited(msg.sender, msg.value);
     }
 
     /// @notice Withdraw available balance
-    function withdraw(uint256 amount) external {
+    function withdraw(uint256 amount) external nonReentrant {
         if (amount == 0) revert ZeroAmount();
         if (balances[msg.sender] < amount) revert InsufficientBalance();
 
@@ -116,20 +190,17 @@ contract FlashGrid {
     // ═══════════════════════════════════════════════════════════
 
     /// @notice Place an order at a specific price tick
-    /// @dev PARALLELISM KEY: Only touches ticks[tick] and tickOrders[tick]
-    ///      Orders at different ticks have ZERO storage conflicts
-    /// @param tick Price tick index (0-19, representing 0.05 to 1.00)
-    /// @param amount Order size in wei
-    /// @param isYes True for YES side, false for NO side
-    function placeOrder(uint8 tick, uint128 amount, bool isYes) external {
+    /// @dev PARALLELISM KEY: Only touches ticks[tick] and tickOrders[tick].
+    ///      Orders at different ticks have ZERO storage conflicts.
+    function placeOrder(uint8 tick, uint128 amount, bool isYes) external whenNotPaused {
         if (tick >= NUM_TICKS) revert InvalidTick();
         if (amount == 0) revert ZeroAmount();
+        if (amount < MIN_ORDER_SIZE) revert OrderTooSmall();
         if (balances[msg.sender] < amount) revert InsufficientBalance();
+        if (resolved) revert AlreadyResolved();
 
-        // Deduct from balance
         balances[msg.sender] -= amount;
 
-        // Update tick state (isolated storage slot)
         TickState storage ts = ticks[tick];
         if (isYes) {
             ts.totalYesLiquidity += amount;
@@ -138,78 +209,145 @@ contract FlashGrid {
         }
         ts.orderCount++;
 
-        // Append to tick-specific order array (isolated storage)
-        tickOrders[tick].push(Order({maker: msg.sender, amount: amount, isYes: isYes, epoch: currentEpoch}));
+        tickOrders[tick].push(Order({
+            maker: msg.sender,
+            amount: amount,
+            isYes: isYes,
+            epoch: currentEpoch,
+            cancelled: false,
+            claimed: false
+        }));
 
         emit OrderPlaced(tick, msg.sender, amount, isYes, currentEpoch);
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    //                    ORDER CANCELLATION
+    // ═══════════════════════════════════════════════════════════
+
+    /// @notice Cancel an open order before market resolution
+    function cancelOrder(uint8 tick, uint256 orderIndex) external {
+        if (tick >= NUM_TICKS) revert InvalidTick();
+        if (resolved) revert AlreadyResolved();
+
+        Order[] storage orders = tickOrders[tick];
+        if (orderIndex >= orders.length) revert InvalidOrderIndex();
+
+        Order storage order = orders[orderIndex];
+        if (order.maker != msg.sender) revert NotOrderMaker();
+        if (order.cancelled) revert OrderAlreadyCancelled();
+
+        order.cancelled = true;
+        uint128 refundAmount = order.amount;
+
+        // Update tick state
+        TickState storage ts = ticks[tick];
+        if (order.isYes) {
+            ts.totalYesLiquidity -= refundAmount;
+        } else {
+            ts.totalNoLiquidity -= refundAmount;
+        }
+        ts.orderCount--;
+
+        // Refund to balance
+        balances[msg.sender] += refundAmount;
+
+        emit OrderCancelled(tick, msg.sender, orderIndex, refundAmount);
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    //                    MARKET RESOLUTION
+    // ═══════════════════════════════════════════════════════════
+
+    /// @notice Resolve the market outcome — only callable by resolver
+    function resolveMarket(bool _outcomeYes) external onlyResolver {
+        if (resolved) revert AlreadyResolved();
+
+        resolved = true;
+        outcomeYes = _outcomeYes;
+
+        emit MarketResolved(_outcomeYes, msg.sender);
     }
 
     // ═══════════════════════════════════════════════════════════
     //                       SETTLEMENT
     // ═══════════════════════════════════════════════════════════
 
-    /// @notice Settle a single tick - matches YES and NO orders
-    /// @dev PARALLELISM KEY: Each tick settles independently
-    ///      Multiple settleTick() calls for different ticks execute in parallel on Monad
-    /// @param tick The tick index to settle
-    function settleTick(uint8 tick) public {
+    /// @notice Settle a single tick after market resolution
+    /// @dev PARALLELISM KEY: Each tick settles independently.
+    ///      Winners get their share + the losing side's matched amount.
+    ///      Unmatched orders on the excess side get refunded.
+    function settleTick(uint8 tick) public nonReentrant {
         if (tick >= NUM_TICKS) revert InvalidTick();
+        if (!resolved) revert NotResolved();
 
         TickState storage ts = ticks[tick];
-        if (ts.lastMatchedEpoch >= currentEpoch) revert AlreadySettled();
 
         uint128 yesLiq = ts.totalYesLiquidity;
         uint128 noLiq = ts.totalNoLiquidity;
-
-        // Match the minimum of YES and NO liquidity
         uint128 matched = yesLiq < noLiq ? yesLiq : noLiq;
 
-        if (matched > 0) {
-            // Pro-rata settlement: distribute matched amount back to winning side
-            Order[] storage orders = tickOrders[tick];
-            uint256 len = orders.length;
+        Order[] storage orders = tickOrders[tick];
+        uint256 len = orders.length;
 
-            for (uint256 i = 0; i < len; i++) {
-                Order storage order = orders[i];
-                if (order.epoch == currentEpoch && order.amount > 0) {
-                    uint128 orderAmt = order.amount;
-                    uint128 pool = order.isYes ? yesLiq : noLiq;
+        uint128 winPool = outcomeYes ? yesLiq : noLiq;
+        uint128 losePool = outcomeYes ? noLiq : yesLiq;
 
-                    // Pro-rata share of matched amount
-                    uint128 share = uint128((uint256(orderAmt) * uint256(matched)) / uint256(pool));
+        for (uint256 i = 0; i < len; i++) {
+            Order storage order = orders[i];
+            if (order.cancelled || order.claimed || order.amount == 0) continue;
 
-                    // Refund unmatched portion + payout
-                    uint128 unmatched = orderAmt - share;
-                    uint128 payout = share * 2; // Winner gets 2x on matched portion
+            order.claimed = true;
+            uint128 orderAmt = order.amount;
+            bool isWinner = (order.isYes == outcomeYes);
 
-                    balances[order.maker] += uint256(unmatched) + uint256(payout) / 2;
-                    // Note: simplified settlement - in production would track outcomes
-                    order.amount = 0; // Mark as settled
+            if (isWinner) {
+                // Winner: gets back full amount + pro-rata share of losing pool
+                uint128 winnings = 0;
+                if (winPool > 0 && matched > 0) {
+                    winnings = uint128((uint256(orderAmt) * uint256(losePool)) / uint256(winPool));
+                    // Cap winnings at matched amount to prevent overflow
+                    if (winnings > matched) winnings = matched;
+                }
+                uint256 payout = uint256(orderAmt) + uint256(winnings);
+                balances[order.maker] += payout;
+                emit PayoutClaimed(tick, order.maker, payout);
+            } else {
+                // Loser: gets back only the unmatched portion
+                uint128 pool = order.isYes ? yesLiq : noLiq;
+                uint128 matchedShare = 0;
+                if (pool > 0) {
+                    matchedShare = uint128((uint256(orderAmt) * uint256(matched)) / uint256(pool));
+                }
+                uint128 unmatched = orderAmt - matchedShare;
+                if (unmatched > 0) {
+                    balances[order.maker] += uint256(unmatched);
+                    emit PayoutClaimed(tick, order.maker, uint256(unmatched));
                 }
             }
-
-            // Emit settlement event
-            emit TickSettled(tick, currentEpoch, matched, matched, uint256(tick + 1) * 5);
         }
 
-        // Update tick state
+        // Emit settlement event
+        uint256 clearingPrice = uint256(tick + 1) * 5;
+        emit TickSettled(tick, currentEpoch, matched, matched, clearingPrice);
+
+        // Reset tick state
         ts.totalYesLiquidity = 0;
         ts.totalNoLiquidity = 0;
         ts.orderCount = 0;
-        ts.lastMatchedEpoch = currentEpoch;
+        ts.lastSettledEpoch = currentEpoch;
     }
 
     /// @notice Settle all ticks and advance epoch
-    /// @dev On Monad, the internal settleTick calls can execute in parallel
-    ///      since each touches only its own tick's storage
     function settleAll() external {
+        if (!resolved) revert NotResolved();
+
         uint256 totalVolume = 0;
         uint16 activeTickCount = 0;
 
         for (uint8 i = 0; i < NUM_TICKS; i++) {
             TickState storage ts = ticks[i];
-            // Skip ticks with no orders or already settled this epoch
-            if (ts.orderCount > 0 && ts.lastMatchedEpoch < currentEpoch) {
+            if (ts.orderCount > 0 && ts.lastSettledEpoch < currentEpoch) {
                 uint128 tickVolume = ts.totalYesLiquidity + ts.totalNoLiquidity;
                 totalVolume += uint256(tickVolume);
                 activeTickCount++;
@@ -225,37 +363,34 @@ contract FlashGrid {
     //                       VIEW FUNCTIONS
     // ═══════════════════════════════════════════════════════════
 
-    /// @notice Get tick state for a specific tick
     function getTickState(uint8 tick)
         external
         view
-        returns (uint128 yesLiquidity, uint128 noLiquidity, uint32 orderCount, uint32 lastMatchedEpoch)
+        returns (uint128 yesLiquidity, uint128 noLiquidity, uint32 orderCount, uint32 lastSettledEpoch)
     {
         if (tick >= NUM_TICKS) revert InvalidTick();
         TickState storage ts = ticks[tick];
-        return (ts.totalYesLiquidity, ts.totalNoLiquidity, ts.orderCount, ts.lastMatchedEpoch);
+        return (ts.totalYesLiquidity, ts.totalNoLiquidity, ts.orderCount, ts.lastSettledEpoch);
     }
 
-    /// @notice Get all tick states in one call (for dashboard)
     function getAllTickStates() external view returns (TickState[20] memory states) {
         for (uint8 i = 0; i < NUM_TICKS; i++) {
             states[i] = ticks[i];
         }
     }
 
-    /// @notice Get orders for a specific tick
     function getTickOrders(uint8 tick) external view returns (Order[] memory) {
         if (tick >= NUM_TICKS) revert InvalidTick();
         return tickOrders[tick];
     }
 
-    /// @notice Get order count for a specific tick
     function getTickOrderCount(uint8 tick) external view returns (uint256) {
         if (tick >= NUM_TICKS) revert InvalidTick();
         return tickOrders[tick].length;
     }
 
     receive() external payable {
+        if (msg.value == 0) revert ZeroAmount();
         balances[msg.sender] += msg.value;
         emit Deposited(msg.sender, msg.value);
     }
