@@ -1,11 +1,9 @@
 // indexer.ts
-// Server-side event indexer that polls the Monad testnet for FlashGrid contract
-// events (OrderPlaced, TickSettled, EpochCompleted). Maintains an in-memory
-// event store with deduplication and provides helper functions for metrics
-// computation. Starts polling from the current block and backfills 10,000 blocks.
+// Server-side event indexer that polls for FlashGrid contract events.
+// Uses chain config from chains.ts for multi-chain support.
 
-import { createPublicClient, http, formatEther, type Log } from "viem";
-import { MONAD_TESTNET, ADDRESSES, FLASHGRID_ABI } from "./contract";
+import { createPublicClient, http, formatEther } from "viem";
+import { getChain, ADDRESSES, FLASHGRID_ABI } from "./contract";
 import type { LiveOrder, TickSettledEvent } from "./types";
 
 // ──────────────────────────────────────────────────────────────
@@ -13,8 +11,8 @@ import type { LiveOrder, TickSettledEvent } from "./types";
 // ═══════════════════════════════════════════════════════════
 
 const MAX_EVENTS = 1000;
-const MAX_BLOCK_RANGE = 2000n; // Max blocks per getLogs call (RPC safe)
-const BACKFILL_BLOCKS = 10000n; // Look back ~2.7 hours on startup
+const MAX_BLOCK_RANGE = 2000n;
+const BACKFILL_BLOCKS = 10000n;
 
 interface EventStore {
   orders: LiveOrder[];
@@ -38,7 +36,6 @@ export const eventStore: EventStore = {
   lastProcessedBlock: 0n,
 };
 
-// Ring buffer push with dedup
 function pushOrder(order: LiveOrder) {
   if (eventStore.seenOrderIds.has(order.id)) return;
   eventStore.seenOrderIds.add(order.id);
@@ -50,7 +47,6 @@ function pushOrder(order: LiveOrder) {
   }
   eventStore.totalOrders++;
 
-  // Track orders per block
   const blockNum = order.blockNumber;
   const current = eventStore.ordersPerBlock.get(blockNum) || 0;
   eventStore.ordersPerBlock.set(blockNum, current + 1);
@@ -75,14 +71,15 @@ let client: ReturnType<typeof createPublicClient> | null = null;
 
 export function getClient() {
   if (!client) {
+    const chain = getChain();
     client = createPublicClient({
       chain: {
-        id: MONAD_TESTNET.id,
-        name: MONAD_TESTNET.name,
-        nativeCurrency: MONAD_TESTNET.nativeCurrency,
-        rpcUrls: MONAD_TESTNET.rpcUrls,
+        id: chain.id,
+        name: chain.name,
+        nativeCurrency: chain.nativeCurrency,
+        rpcUrls: chain.rpcUrls,
       },
-      transport: http(MONAD_TESTNET.rpcUrls.default.http[0]),
+      transport: http(chain.rpcUrls.default.http[0]),
     });
   }
   return client;
@@ -123,12 +120,10 @@ async function fetchEventsInRange(
   from: bigint,
   to: bigint
 ) {
-  // Chunk into MAX_BLOCK_RANGE slices to stay within RPC limits
   for (let start = from; start <= to; start += MAX_BLOCK_RANGE) {
     const end = start + MAX_BLOCK_RANGE - 1n > to ? to : start + MAX_BLOCK_RANGE - 1n;
 
     try {
-      // Fetch OrderPlaced events
       const orderLogs = await publicClient.getLogs({
         address: flashGridAddress,
         event: ORDER_PLACED_EVENT,
@@ -161,7 +156,6 @@ async function fetchEventsInRange(
         eventStore.totalVolume += args.amount || 0n;
       }
 
-      // Fetch TickSettled events
       const settleLogs = await publicClient.getLogs({
         address: flashGridAddress,
         event: TICK_SETTLED_EVENT,
@@ -191,7 +185,6 @@ async function fetchEventsInRange(
         pushSettlement(settlement);
       }
     } catch (err) {
-      // If a chunk fails (e.g. range too large), skip it silently
       console.error(`Failed to fetch events for blocks ${start}-${end}:`, err);
     }
   }
@@ -214,7 +207,6 @@ export async function startPolling(intervalMs = 2000) {
 
   const publicClient = getClient();
 
-  // Get current block
   let currentBlock: bigint;
   try {
     currentBlock = await publicClient.getBlockNumber();
@@ -223,10 +215,8 @@ export async function startPolling(intervalMs = 2000) {
     return;
   }
 
-  // Set lastProcessedBlock to current so the poller immediately picks up new events
   eventStore.lastProcessedBlock = currentBlock;
 
-  // Kick off backfill in background (does NOT block polling)
   if (!backfillDone) {
     backfillDone = true;
     const backfillFrom = currentBlock > BACKFILL_BLOCKS ? currentBlock - BACKFILL_BLOCKS : 0n;
@@ -235,7 +225,6 @@ export async function startPolling(intervalMs = 2000) {
     });
   }
 
-  // Start polling for new events going forward
   pollingInterval = setInterval(async () => {
     try {
       const latestBlock = await publicClient.getBlockNumber();
@@ -268,14 +257,13 @@ export function stopPolling() {
 export function getOrdersPerBlock(): number[] {
   const entries = Array.from(eventStore.ordersPerBlock.entries())
     .sort(([a], [b]) => a - b)
-    .slice(-50); // Last 50 blocks
+    .slice(-50);
 
   return entries.map(([, count]) => count);
 }
 
 export function getActiveTicks(): number {
   const tickSet = new Set<number>();
-  // Check recent orders (last 100)
   const recent = eventStore.orders.slice(-100);
   for (const order of recent) {
     tickSet.add(order.tick);

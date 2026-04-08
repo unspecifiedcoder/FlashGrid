@@ -1,0 +1,90 @@
+name: CI
+
+on:
+  push:
+    branches: [main, "feature/**"]
+  pull_request:
+    branches: [main]
+
+jobs:
+  contracts:
+    name: Contracts (Build + Test + Fmt)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: contracts
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+
+      - name: Install forge-std
+        run: forge install foundry-rs/forge-std --no-commit
+
+      - name: Build contracts
+        run: forge build --sizes
+
+      - name: Run tests
+        run: forge test -vvv
+
+      - name: Run fuzz tests (extended)
+        run: forge test --match-test "testFuzz" -vvv --fuzz-runs 500
+
+      - name: Check formatting
+        run: forge fmt --check
+
+  dashboard:
+    name: Dashboard (Lint + Typecheck + Build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: dashboard
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: dashboard/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: TypeScript typecheck
+        run: npx tsc --noEmit
+
+      - name: Build
+        run: npm run build
+
+  sdk:
+    name: SDK (Typecheck + Build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: sdk
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: sdk/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: TypeScript typecheck
+        run: npx tsc --noEmit
+
+      - name: Build
+        run: npm run build

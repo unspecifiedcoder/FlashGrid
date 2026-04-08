@@ -8,13 +8,14 @@ import {ParallelBenchmark} from "../src/ParallelBenchmark.sol";
 contract DeployScript is Script {
     function run() external {
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
+        address deployer = vm.addr(deployerPrivateKey);
         vm.startBroadcast(deployerPrivateKey);
 
         // 1. Deploy Factory
         FlashGridFactory factory = new FlashGridFactory();
         console2.log("FlashGridFactory deployed at:", address(factory));
 
-        // 2. Create default market via factory
+        // 2. Create default market (deployer is resolver)
         address market = factory.createMarket("Will MON reach $10 by Q2 2025?");
         console2.log("FlashGrid market deployed at:", market);
 
@@ -24,10 +25,10 @@ contract DeployScript is Script {
 
         vm.stopBroadcast();
 
-        // Output addresses for scripts
         console2.log("\n=== Deployment Summary ===");
         console2.log("Factory:   ", address(factory));
         console2.log("Market:    ", market);
+        console2.log("Resolver:  ", deployer);
         console2.log("Benchmark: ", address(benchmark));
         console2.log("Chain ID:  ", block.chainid);
     }

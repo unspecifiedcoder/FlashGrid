@@ -10,8 +10,15 @@ optimizer_runs = 200
 line_length = 120
 tab_width = 4
 
+[profile.default.fuzz]
+runs = 256
+
 [rpc_endpoints]
 monad_testnet = "https://testnet-rpc.monad.xyz"
+sepolia = "${SEPOLIA_RPC_URL}"
+base_sepolia = "${BASE_SEPOLIA_RPC_URL}"
 
 [etherscan]
 monad_testnet = { key = "", url = "https://testnet.monadvision.com/api" }
+sepolia = { key = "${ETHERSCAN_API_KEY}", url = "https://api-sepolia.etherscan.io/api" }
+base_sepolia = { key = "${BASESCAN_API_KEY}", url = "https://api-sepolia.basescan.org/api" }
